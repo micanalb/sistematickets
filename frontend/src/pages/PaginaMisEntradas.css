@@ -1,0 +1,105 @@
+.pagina-mis-entradas {
+  padding: 40px 0 80px;
+  min-height: calc(100vh - 64px);
+}
+
+.mis-entradas-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.mis-entradas-header h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.mis-entradas-seccion { margin-bottom: 40px; }
+
+.seccion-titulo {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-texto-secundario);
+  margin-bottom: 16px;
+  font-family: var(--fuente-cuerpo);
+}
+
+.entradas-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+/* ── Tarjeta Entrada ─────────────────────────────────────────────── */
+.entrada-card {
+  background: var(--color-fondo-2);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  padding: 24px;
+  transition: border-color var(--transicion);
+}
+.entrada-card:hover { border-color: rgba(249,115,22,0.3); }
+
+.entrada-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.entrada-titulo {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  font-family: var(--fuente-display);
+}
+
+.entrada-lugar {
+  font-size: 0.82rem;
+  color: var(--color-texto-secundario);
+}
+
+.entrada-detalles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.entrada-dato {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+.entrada-dato > span:first-child { color: var(--color-texto-secundario); }
+.entrada-dato strong { font-weight: 500; }
+
+.codigo-qr-mini {
+  font-size: 0.7rem;
+  background: var(--color-fondo);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--color-texto-secundario);
+}
+
+.entrada-acciones {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+/* ── Sin entradas ─────────────────────────────────────────────────── */
+.sin-entradas {
+  text-align: center;
+  padding: 80px 0;
+  color: var(--color-texto-secundario);
+}
+.sin-entradas-icono { font-size: 3rem; display: block; margin-bottom: 16px; }
+.sin-entradas h3 { font-size: 1.2rem; margin-bottom: 8px; color: var(--color-texto); }
