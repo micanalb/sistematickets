@@ -47,3 +47,18 @@
 }
 
 .navbar-saludo strong { color: var(--color-texto); }
+
+.navbar-badge-admin {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 7px;
+  background: var(--color-acento-suave);
+  color: var(--color-acento);
+  border: 1px solid var(--color-acento);
+  border-radius: 100px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+}

@@ -4,9 +4,9 @@ import { entradasAPI } from '../services/api'
 import './PaginaMisEntradas.css'
 
 const ETIQUETA_ESTADO = {
-  activa: { label: 'Activa', clase: 'badge-activa' },
-  cancelada: { label: 'Cancelada', clase: 'badge-cancelada' },
-  usada: { label: 'Usada', clase: 'badge-usada' },
+  activa:      { label: 'Activa',      clase: 'badge-activa' },
+  cancelada:   { label: 'Cancelada',   clase: 'badge-cancelada' },
+  usada:       { label: 'Usada',       clase: 'badge-usada' },
   transferida: { label: 'Transferida', clase: 'badge-transferida' },
 }
 
@@ -17,7 +17,8 @@ function ModalCancelar({ entrada, onConfirmar, onCerrar, cargando }) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h2 style={{ marginBottom: 12 }}>Cancelar entrada</h2>
         <p className="texto-secundario" style={{ marginBottom: 20 }}>
-          ¿Estás seguro que querés cancelar tu entrada para <strong style={{ color: 'var(--color-texto)' }}>{entrada?.evento?.titulo}</strong>?
+          ¿Estás seguro que querés cancelar tu entrada para{' '}
+          <strong style={{ color: 'var(--color-texto)' }}>{entrada?.evento?.titulo}</strong>?
           Esta acción no se puede deshacer.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
@@ -51,7 +52,8 @@ function ModalTransferir({ entrada, onConfirmar, onCerrar, cargando }) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h2 style={{ marginBottom: 8 }}>Transferir entrada</h2>
         <p className="texto-secundario" style={{ marginBottom: 20 }}>
-          Transferís tu entrada para <strong style={{ color: 'var(--color-texto)' }}>{entrada?.evento?.titulo}</strong>.
+          Transferís tu entrada para{' '}
+          <strong style={{ color: 'var(--color-texto)' }}>{entrada?.evento?.titulo}</strong>.
           El destinatario debe estar registrado en el sistema.
         </p>
         <div className="form-grupo">
@@ -82,15 +84,21 @@ function ModalTransferir({ entrada, onConfirmar, onCerrar, cargando }) {
 
 /* ── Tarjeta Entrada ─────────────────────────────────────────────── */
 function TarjetaEntrada({ entrada, onCancelar, onTransferir }) {
-  const fecha = new Date(entrada.fecha_compra)
-  const fechaCompra = fecha.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })
+  const fechaCompra = new Date(entrada.fecha_compra).toLocaleDateString('es-AR', {
+    day: 'numeric', month: 'short', year: 'numeric'
+  })
   const estado = ETIQUETA_ESTADO[entrada.estado] || { label: entrada.estado, clase: '' }
   const puedeAccionar = entrada.estado === 'activa'
 
   const fechaEvento = entrada.evento ? new Date(entrada.evento.fecha_hora) : null
   const fechaEventoStr = fechaEvento
-    ? fechaEvento.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+    ? fechaEvento.toLocaleDateString('es-AR', {
+        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
+      })
     : '—'
+  const horaEvento = fechaEvento
+    ? fechaEvento.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+    : ''
 
   return (
     <article className="entrada-card">
@@ -109,7 +117,7 @@ function TarjetaEntrada({ entrada, onCancelar, onTransferir }) {
       <div className="entrada-detalles">
         <div className="entrada-dato">
           <span>📅 Fecha del evento</span>
-          <strong>{fechaEventoStr}</strong>
+          <strong>{fechaEventoStr} {horaEvento && `· ${horaEvento}hs`}</strong>
         </div>
         <div className="entrada-dato">
           <span>🗓️ Comprada el</span>
@@ -118,12 +126,10 @@ function TarjetaEntrada({ entrada, onCancelar, onTransferir }) {
         <div className="entrada-dato">
           <span>💰 Precio pagado</span>
           <strong className="texto-acento">
-            {entrada.precio_pagado === 0 ? 'GRATIS' : `$${entrada.precio_pagado.toLocaleString('es-AR')}`}
+            {entrada.precio_pagado === 0
+              ? 'GRATIS'
+              : `$${entrada.precio_pagado.toLocaleString('es-AR')}`}
           </strong>
-        </div>
-        <div className="entrada-dato">
-          <span>🎟️ Código QR</span>
-          <code className="codigo-qr-mini">{entrada.codigo_qr?.slice(0, 20)}...</code>
         </div>
       </div>
 
@@ -154,7 +160,6 @@ export default function PaginaMisEntradas() {
   const [error, setError] = useState('')
   const [mensajeExito, setMensajeExito] = useState('')
 
-  // Modales
   const [entradaACancelar, setEntradaACancelar] = useState(null)
   const [entradaATransferir, setEntradaATransferir] = useState(null)
   const [accionCargando, setAccionCargando] = useState(false)
@@ -205,7 +210,7 @@ export default function PaginaMisEntradas() {
   }
 
   const activas = entradas.filter(e => e.estado === 'activa')
-  const resto = entradas.filter(e => e.estado !== 'activa')
+  const resto   = entradas.filter(e => e.estado !== 'activa')
 
   return (
     <div className="pagina-mis-entradas">
@@ -218,27 +223,21 @@ export default function PaginaMisEntradas() {
           <Link to="/" className="btn btn-secundario btn-sm">Explorar eventos</Link>
         </div>
 
-        {/* Alertas */}
         {error && (
           <div className="alerta alerta-error" style={{ marginBottom: 24 }}>
             {error}
-            <button
-              style={{ marginLeft: 12, background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-              onClick={() => setError('')}
-            >✕</button>
+            <button style={{ marginLeft: 12, background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+              onClick={() => setError('')}>✕</button>
           </div>
         )}
         {mensajeExito && (
           <div className="alerta alerta-exito" style={{ marginBottom: 24 }}>
             {mensajeExito}
-            <button
-              style={{ marginLeft: 12, background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-              onClick={() => setMensajeExito('')}
-            >✕</button>
+            <button style={{ marginLeft: 12, background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+              onClick={() => setMensajeExito('')}>✕</button>
           </div>
         )}
 
-        {/* Contenido */}
         {cargando ? (
           <div className="cargando-contenedor"><div className="spinner" /><span>Cargando entradas...</span></div>
         ) : entradas.length === 0 ? (
@@ -255,28 +254,21 @@ export default function PaginaMisEntradas() {
                 <h2 className="seccion-titulo">Entradas activas ({activas.length})</h2>
                 <div className="entradas-grilla">
                   {activas.map(e => (
-                    <TarjetaEntrada
-                      key={e.id}
-                      entrada={e}
+                    <TarjetaEntrada key={e.id} entrada={e}
                       onCancelar={setEntradaACancelar}
-                      onTransferir={setEntradaATransferir}
-                    />
+                      onTransferir={setEntradaATransferir} />
                   ))}
                 </div>
               </section>
             )}
-
             {resto.length > 0 && (
               <section className="mis-entradas-seccion">
                 <h2 className="seccion-titulo">Historial ({resto.length})</h2>
                 <div className="entradas-grilla">
                   {resto.map(e => (
-                    <TarjetaEntrada
-                      key={e.id}
-                      entrada={e}
+                    <TarjetaEntrada key={e.id} entrada={e}
                       onCancelar={setEntradaACancelar}
-                      onTransferir={setEntradaATransferir}
-                    />
+                      onTransferir={setEntradaATransferir} />
                   ))}
                 </div>
               </section>
@@ -285,22 +277,17 @@ export default function PaginaMisEntradas() {
         )}
       </div>
 
-      {/* Modales */}
       {entradaACancelar && (
-        <ModalCancelar
-          entrada={entradaACancelar}
+        <ModalCancelar entrada={entradaACancelar}
           onConfirmar={handleCancelarConfirmar}
           onCerrar={() => setEntradaACancelar(null)}
-          cargando={accionCargando}
-        />
+          cargando={accionCargando} />
       )}
       {entradaATransferir && (
-        <ModalTransferir
-          entrada={entradaATransferir}
+        <ModalTransferir entrada={entradaATransferir}
           onConfirmar={handleTransferirConfirmar}
           onCerrar={() => setEntradaATransferir(null)}
-          cargando={accionCargando}
-        />
+          cargando={accionCargando} />
       )}
     </div>
   )
