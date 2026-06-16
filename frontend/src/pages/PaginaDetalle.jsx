@@ -13,9 +13,7 @@ const ETIQUETAS_CATEGORIA = {
   otro: '📌 Otro',
 }
 
-/**
- * ModalExito — Se muestra cuando la compra se concreta correctamente
- */
+// ── Modal éxito — SIN código QR ───────────────────────────────────
 function ModalExito({ entrada, onCerrar }) {
   return (
     <div className="modal-overlay" onClick={onCerrar}>
@@ -25,10 +23,6 @@ function ModalExito({ entrada, onCerrar }) {
         <p className="modal-exito-subtitulo">Tu compra se procesó exitosamente.</p>
 
         <div className="modal-exito-detalle">
-          <div className="detalle-fila">
-            <span>Código QR</span>
-            <code className="codigo-qr">{entrada?.codigo_qr}</code>
-          </div>
           <div className="detalle-fila">
             <span>Estado</span>
             <span className="badge badge-activa">Activa</span>
@@ -54,9 +48,6 @@ function ModalExito({ entrada, onCerrar }) {
   )
 }
 
-/**
- * PaginaDetalle — Información completa de un evento y botón de compra
- */
 export default function PaginaDetalle() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -98,6 +89,11 @@ export default function PaginaDetalle() {
 
     try {
       const response = await entradasAPI.comprar(evento.id)
+      // Actualizar disponibilidad en pantalla sin recargar
+      setEvento(prev => ({
+        ...prev,
+        entradas_vendidas: prev.entradas_vendidas + 1
+      }))
       setEntradaComprada(response.data.datos)
     } catch (err) {
       const mensaje = err.response?.data?.error || 'No se pudo procesar la compra.'
@@ -146,7 +142,6 @@ export default function PaginaDetalle() {
         <div className="detalle-layout">
           {/* Columna principal */}
           <div className="detalle-principal">
-            {/* Imagen */}
             <div className="detalle-imagen">
               {evento.imagen_url ? (
                 <img src={evento.imagen_url} alt={evento.titulo} />
@@ -155,7 +150,6 @@ export default function PaginaDetalle() {
               )}
             </div>
 
-            {/* Info principal */}
             <div className="detalle-info">
               <span className={`badge badge-${evento.categoria}`}>
                 {ETIQUETAS_CATEGORIA[evento.categoria] || evento.categoria}
@@ -169,7 +163,6 @@ export default function PaginaDetalle() {
 
               <div className="separador" />
 
-              {/* Datos del evento */}
               <div className="detalle-datos">
                 <div className="dato-item">
                   <span className="dato-icono">📅</span>
@@ -197,7 +190,9 @@ export default function PaginaDetalle() {
                     <span className="dato-icono">🗺️</span>
                     <div>
                       <span className="dato-etiqueta">Dirección</span>
-                      <span className="dato-valor">{evento.direccion}{evento.ciudad ? `, ${evento.ciudad}` : ''}</span>
+                      <span className="dato-valor">
+                        {evento.direccion}{evento.ciudad ? `, ${evento.ciudad}` : ''}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -205,10 +200,9 @@ export default function PaginaDetalle() {
             </div>
           </div>
 
-          {/* Sidebar de compra */}
+          {/* Sidebar */}
           <aside className="detalle-sidebar">
             <div className="sidebar-card">
-              {/* Precio */}
               <div className="sidebar-precio">
                 {evento.precio_base === 0 ? (
                   <span className="precio-gratis">GRATIS</span>
@@ -222,25 +216,31 @@ export default function PaginaDetalle() {
                 )}
               </div>
 
-              {/* Disponibilidad */}
               <div className="sidebar-disponibilidad">
                 <div className="disponibilidad-texto">
-                  <span>{agotado ? '❌ Sin entradas disponibles' : `✅ ${disponibles} entradas disponibles`}</span>
-                  <span className="texto-secundario">{evento.entradas_vendidas} / {evento.capacidad_total} vendidas</span>
+                  <span>
+                    {agotado
+                      ? '❌ Sin entradas disponibles'
+                      : `✅ ${disponibles.toLocaleString('es-AR')} entradas disponibles`}
+                  </span>
+                  <span className="texto-secundario">
+                    {evento.entradas_vendidas.toLocaleString('es-AR')} / {evento.capacidad_total.toLocaleString('es-AR')} vendidas
+                  </span>
                 </div>
                 <div className="ocupacion-barra" style={{ height: 6 }}>
-                  <div className="ocupacion-relleno" style={{ width: `${Math.min(porcentajeOcupacion, 100)}%` }} />
+                  <div
+                    className="ocupacion-relleno"
+                    style={{ width: `${Math.min(porcentajeOcupacion, 100)}%` }}
+                  />
                 </div>
               </div>
 
               <div className="separador" />
 
-              {/* Error de compra */}
               {errorCompra && (
                 <div className="alerta alerta-error">{errorCompra}</div>
               )}
 
-              {/* Botón de acción */}
               {agotado ? (
                 <button className="btn btn-secundario" style={{ width: '100%' }} disabled>
                   Entradas agotadas
@@ -253,7 +253,10 @@ export default function PaginaDetalle() {
                   disabled={comprando}
                 >
                   {comprando ? (
-                    <><div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> Procesando...</>
+                    <>
+                      <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
+                      Procesando...
+                    </>
                   ) : (
                     estaAutenticado ? '🎫 Comprar entrada' : 'Iniciá sesión para comprar'
                   )}
@@ -270,7 +273,6 @@ export default function PaginaDetalle() {
         </div>
       </div>
 
-      {/* Modal de éxito al comprar */}
       {entradaComprada && (
         <ModalExito
           entrada={entradaComprada}
