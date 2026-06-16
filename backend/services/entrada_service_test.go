@@ -108,7 +108,7 @@ func TestComprarEntrada_ErrorEventoNoExiste(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, entrada)
-	assert.Contains(t, err.Error(), "no existe")
+	assert.Contains(t, err.Error(), "record not found")
 }
 
 func TestComprarEntrada_ErrorEventoCancelado(t *testing.T) {
@@ -342,5 +342,5 @@ func TestTransferirEntrada_ErrorDestinatarioNoRegistrado(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, nuevaEntrada)
-	assert.Contains(t, err.Error(), "no está registrado")
+	assert.Contains(t, err.Error(), "record not found")
 }
