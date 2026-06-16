@@ -1,7 +1,6 @@
 # 🎫 SistemaTickets
 
-> Plataforma de venta de entradas para eventos — Primera entrega (Regularidad).
-
+> Plataforma de venta de entradas para eventos 
 ---
 
 ## Tecnologías
