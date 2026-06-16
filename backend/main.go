@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"ticketsya/clients"
 	"ticketsya/controllers"
 	"ticketsya/dao"
@@ -12,6 +13,8 @@ import (
 )
 
 func main() {
+	// Cargar variables de entorno desde .env
+    	godotenv.Load()
 	// Inicializar la conexión a la base de datos
 	db, err := clients.InicializarDB()
 	if err != nil {

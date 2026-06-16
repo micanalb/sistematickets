@@ -38,7 +38,9 @@
   --transicion: 0.2s ease;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -59,7 +61,11 @@ body {
 }
 
 /* ── Tipografía ──────────────────────────────────────────────────────────────*/
-h1, h2, h3, h4, h5 {
+h1,
+h2,
+h3,
+h4,
+h5 {
   font-family: var(--fuente-display);
   font-weight: 700;
   line-height: 1.2;
@@ -71,7 +77,10 @@ a {
   text-decoration: none;
   transition: color var(--transicion);
 }
-a:hover { color: var(--color-acento-hover); }
+
+a:hover {
+  color: var(--color-acento-hover);
+}
 
 /* ── Botones ─────────────────────────────────────────────────────────────────*/
 .btn {
@@ -99,6 +108,7 @@ a:hover { color: var(--color-acento-hover); }
   background: var(--color-acento);
   color: white;
 }
+
 .btn-primario:hover:not(:disabled) {
   background: var(--color-acento-hover);
   box-shadow: var(--sombra-acento);
@@ -110,6 +120,7 @@ a:hover { color: var(--color-acento-hover); }
   color: var(--color-texto);
   border: 1px solid var(--color-borde);
 }
+
 .btn-secundario:hover:not(:disabled) {
   border-color: var(--color-acento);
   color: var(--color-acento);
@@ -120,6 +131,7 @@ a:hover { color: var(--color-acento-hover); }
   color: var(--color-error);
   border: 1px solid var(--color-error);
 }
+
 .btn-peligro:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.1);
 }
@@ -166,9 +178,14 @@ a:hover { color: var(--color-acento-hover); }
   box-shadow: 0 0 0 3px var(--color-acento-suave);
 }
 
-.form-input::placeholder { color: var(--color-texto-tenue); }
+.form-input::placeholder {
+  color: var(--color-texto-tenue);
+}
 
-.form-input-error { border-color: var(--color-error) !important; }
+.form-input-error {
+  border-color: var(--color-error) !important;
+}
+
 .form-error-msg {
   font-size: 0.8rem;
   color: var(--color-error);
@@ -206,13 +223,50 @@ select.form-input {
   letter-spacing: 0.05em;
 }
 
-.badge-activa   { background: rgba(34, 197, 94, 0.15); color: var(--color-exito); }
-.badge-cancelada { background: rgba(239, 68, 68, 0.15); color: var(--color-error); }
-.badge-transferida { background: rgba(59, 130, 246, 0.15); color: var(--color-info); }
-.badge-agotado  { background: rgba(239, 68, 68, 0.1); color: var(--color-error); }
-.badge-musica   { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
-.badge-deporte  { background: rgba(34, 197, 94, 0.15); color: var(--color-exito); }
-.badge-cultura  { background: rgba(249, 115, 22, 0.15); color: var(--color-acento); }
+.badge-activa {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--color-exito);
+}
+
+.badge-cancelada {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-error);
+}
+
+.badge-transferida {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--color-info);
+}
+
+.badge-agotado {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
+}
+
+.badge-musica {
+  background: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+.badge-deporte {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--color-exito);
+}
+
+.badge-cultura {
+  background: rgba(249, 115, 22, 0.15);
+  color: var(--color-acento);
+}
+
+.badge-conferencia {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.badge-teatro_cine {
+  background: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
 
 /* ── Alertas ──────────────────────────────────────────────────────────────────*/
 .alerta {
@@ -222,9 +276,24 @@ select.form-input {
   margin-bottom: 16px;
   border-left: 3px solid;
 }
-.alerta-error   { background: rgba(239, 68, 68, 0.08); border-color: var(--color-error); color: #fca5a5; }
-.alerta-exito   { background: rgba(34, 197, 94, 0.08); border-color: var(--color-exito); color: #86efac; }
-.alerta-info    { background: rgba(59, 130, 246, 0.08); border-color: var(--color-info); color: #93c5fd; }
+
+.alerta-error {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: var(--color-error);
+  color: #fca5a5;
+}
+
+.alerta-exito {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: var(--color-exito);
+  color: #86efac;
+}
+
+.alerta-info {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: var(--color-info);
+  color: #93c5fd;
+}
 
 /* ── Loader ───────────────────────────────────────────────────────────────────*/
 .spinner {
@@ -237,7 +306,9 @@ select.form-input {
 }
 
 @keyframes girar {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .cargando-contenedor {
@@ -281,18 +352,73 @@ select.form-input {
   animation: slideUp 0.2s ease;
 }
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
 
 /* ── Utilidades ───────────────────────────────────────────────────────────────*/
-.texto-acento { color: var(--color-acento); }
-.texto-secundario { color: var(--color-texto-secundario); }
-.texto-error { color: var(--color-error); }
-.texto-exito { color: var(--color-exito); }
-.peso-medio { font-weight: 500; }
-.peso-negrita { font-weight: 700; }
-.separador { height: 1px; background: var(--color-borde); margin: 24px 0; }
-.flex-centro { display: flex; align-items: center; justify-content: center; }
-.gap-8 { gap: 8px; }
-.gap-12 { gap: 12px; }
-.gap-16 { gap: 16px; }
+.texto-acento {
+  color: var(--color-acento);
+}
+
+.texto-secundario {
+  color: var(--color-texto-secundario);
+}
+
+.texto-error {
+  color: var(--color-error);
+}
+
+.texto-exito {
+  color: var(--color-exito);
+}
+
+.peso-medio {
+  font-weight: 500;
+}
+
+.peso-negrita {
+  font-weight: 700;
+}
+
+.separador {
+  height: 1px;
+  background: var(--color-borde);
+  margin: 24px 0;
+}
+
+.flex-centro {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gap-8 {
+  gap: 8px;
+}
+
+.gap-12 {
+  gap: 12px;
+}
+
+.gap-16 {
+  gap: 16px;
+}

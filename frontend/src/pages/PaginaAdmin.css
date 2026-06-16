@@ -1,0 +1,214 @@
+.pagina-admin {
+  padding: 40px 0 80px;
+  min-height: calc(100vh - 64px);
+}
+
+.admin-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.admin-header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 4px; }
+
+/* ── Tabla ────────────────────────────────────────────────────────── */
+.admin-tabla-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+}
+
+.admin-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.admin-tabla thead {
+  background: var(--color-fondo-2);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.admin-tabla th {
+  padding: 14px 16px;
+  text-align: left;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-texto-secundario);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.admin-tabla tbody tr {
+  border-bottom: 1px solid var(--color-borde);
+  transition: background var(--transicion);
+}
+
+.admin-tabla tbody tr:last-child { border-bottom: none; }
+.admin-tabla tbody tr:hover { background: var(--color-fondo-2); }
+
+.admin-tabla td {
+  padding: 14px 16px;
+  vertical-align: middle;
+}
+
+.tabla-evento-nombre { font-weight: 600; margin-bottom: 2px; }
+.tabla-evento-lugar { font-size: 0.78rem; color: var(--color-texto-secundario); }
+
+.tabla-ocupacion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--color-texto-secundario);
+}
+
+.tabla-acciones { display: flex; gap: 6px; }
+
+/* Badges de estado en tabla */
+.badge-estado-activo    { background: rgba(34,197,94,0.15); color: var(--color-exito); }
+.badge-estado-cancelado { background: rgba(239,68,68,0.15); color: var(--color-error); }
+.badge-estado-agotado   { background: rgba(239,68,68,0.1); color: var(--color-error); }
+.badge-estado-finalizado{ background: rgba(148,163,184,0.15); color: #94a3b8; }
+
+/* ── Modal formulario ─────────────────────────────────────────────── */
+.modal-admin {
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.modal-admin-header h2 { font-size: 1.3rem; }
+
+.btn-cerrar {
+  background: none;
+  border: none;
+  color: var(--color-texto-secundario);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radio);
+  transition: background var(--transicion);
+}
+.btn-cerrar:hover { background: var(--color-fondo-3); color: var(--color-texto); }
+
+.admin-form { display: flex; flex-direction: column; gap: 4px; }
+.admin-form .form-grupo { margin-bottom: 16px; }
+
+.admin-form-fila {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.admin-form textarea.form-input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.modal-admin-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-borde);
+}
+
+/* ── Modal Reporte ────────────────────────────────────────────────── */
+.modal-reporte {
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.reporte-metricas {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 20px 0 8px;
+}
+
+.metrica-card {
+  background: var(--color-fondo-3);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: 16px;
+  text-align: center;
+}
+
+.metrica-highlight {
+  border-color: var(--color-acento);
+  background: var(--color-acento-suave);
+}
+
+.metrica-valor {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 800;
+  font-family: var(--fuente-display);
+  color: var(--color-texto);
+}
+
+.metrica-highlight .metrica-valor { color: var(--color-acento); }
+
+.metrica-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-texto-secundario);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.reporte-tabla-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.reporte-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.reporte-tabla th {
+  padding: 10px 12px;
+  background: var(--color-fondo-3);
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--color-texto-secundario);
+  position: sticky;
+  top: 0;
+}
+
+.reporte-tabla td {
+  padding: 10px 12px;
+  border-top: 1px solid var(--color-borde);
+}
+
+/* ── Misc ─────────────────────────────────────────────────────────── */
+.btn-x {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  margin-left: 8px;
+  opacity: 0.7;
+}
+.btn-x:hover { opacity: 1; }
