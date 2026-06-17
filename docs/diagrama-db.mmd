@@ -1,0 +1,46 @@
+erDiagram
+    USUARIOS {
+        bigint id PK
+        varchar nombre
+        varchar apellido
+        varchar email
+        varchar password_hash
+        enum rol
+        varchar telefono
+        boolean activo
+        datetime fecha_registro
+        datetime deleted_at
+    }
+
+    EVENTOS {
+        bigint id PK
+        varchar titulo
+        text descripcion
+        datetime fecha_hora
+        int duracion_minutos
+        varchar lugar
+        varchar direccion
+        varchar ciudad
+        enum categoria
+        int capacidad_total
+        int entradas_vendidas
+        decimal precio_base
+        varchar imagen_url
+        enum estado
+        datetime deleted_at
+    }
+
+    ENTRADAS {
+        bigint id PK
+        varchar codigo_qr
+        bigint usuario_id FK
+        bigint evento_id FK
+        decimal precio_pagado
+        enum estado
+        datetime fecha_compra
+        datetime fecha_cancelacion
+        datetime deleted_at
+    }
+
+    USUARIOS ||--o{ ENTRADAS : "compra"
+    EVENTOS ||--o{ ENTRADAS : "tiene"

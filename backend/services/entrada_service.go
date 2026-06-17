@@ -42,7 +42,7 @@ func (s *entradaServiceImpl) ComprarEntrada(usuarioID uint, dto domain.DTOCompra
 	evento, err := s.eventoDAO.BuscarPorID(dto.EventoID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("el evento no existe")
+			return nil, errors.New("record not found")
 		}
 		return nil, fmt.Errorf("error al verificar evento: %w", err)
 	}
@@ -157,7 +157,7 @@ func (s *entradaServiceImpl) TransferirEntrada(entradaID, usuarioID uint, dto do
 	destinatario, err := s.usuarioDAO.BuscarPorEmail(dto.EmailDestinatario)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("el email destinatario no está registrado en el sistema")
+			return nil, errors.New("record not found")
 		}
 		return nil, err
 	}

@@ -175,7 +175,7 @@ export default function PaginaDetalle() {
                   <span className="dato-icono">⏰</span>
                   <div>
                     <span className="dato-etiqueta">Horario</span>
-                    <span className="dato-valor">{hora} hs — duración aprox. {evento.duracion_minutos} min</span>
+                    <span className="dato-valor">{hora} hs — duración aprox. {Math.round(evento.duracion_minutos / 60)} hs</span>
                   </div>
                 </div>
                 <div className="dato-item">
