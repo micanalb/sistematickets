@@ -1,10 +1,11 @@
 package controllers
 
 import (
-	"github.com/gin-gonic/gin"
 	"ticketsya/domain"
 	"ticketsya/services"
 	"ticketsya/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 // AuthController maneja los endpoints de registro y login
@@ -26,15 +27,6 @@ func (ctrl *AuthController) RegistrarRutas(router *gin.RouterGroup) {
 	}
 }
 
-// Registrar godoc
-// @Summary Registro de nuevo usuario
-// @Description Crea una nueva cuenta de usuario en el sistema
-// @Tags autenticación
-// @Accept json
-// @Produce json
-// @Param body body domain.DTORegistro true "Datos del nuevo usuario"
-// @Success 201 {object} domain.DTORespuestaLogin
-// @Router /auth/registro [post]
 func (ctrl *AuthController) Registrar(c *gin.Context) {
 	var dto domain.DTORegistro
 
@@ -54,15 +46,6 @@ func (ctrl *AuthController) Registrar(c *gin.Context) {
 	utils.ResponderCreado(c, respuesta)
 }
 
-// Login godoc
-// @Summary Login de usuario
-// @Description Autentica al usuario y retorna un token JWT
-// @Tags autenticación
-// @Accept json
-// @Produce json
-// @Param body body domain.DTOLogin true "Credenciales"
-// @Success 200 {object} domain.DTORespuestaLogin
-// @Router /auth/login [post]
 func (ctrl *AuthController) Login(c *gin.Context) {
 	var dto domain.DTOLogin
 

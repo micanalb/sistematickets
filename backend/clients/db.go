@@ -6,19 +6,20 @@ import (
 	"os"
 	"time"
 
+	"ticketsya/domain"
+
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"ticketsya/domain"
 )
 
 // instanciaDB es el singleton de conexión a la base de datos, guarda la unica conexion a la BD
-//empieza en nil(vacia)
+// empieza en nil(vacia)
 var instanciaDB *gorm.DB
 
 // ObtenerDB retorna la instancia singleton de la base de datos.
 // Panics si la base de datos no fue inicializada previamente.
-// Si alguien intenta usarla antes de inicializarla, el programa se detiene con log.Fatal. 
+// Si alguien intenta usarla antes de inicializarla, el programa se detiene con log.Fatal.
 // Esta función no se usa mucho porque pasamos la conexión directamente a los DAOs.
 func ObtenerDB() *gorm.DB {
 	if instanciaDB == nil {
@@ -65,15 +66,13 @@ func InicializarDB() (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	sqlDB.SetMaxIdleConns(10) //maximo 10 conexiones en espera sin usar
-	sqlDB.SetMaxOpenConns(100) //maximo 100 conexiones abiertas al mismo tiempo
+	sqlDB.SetMaxIdleConns(10)           //maximo 10 conexiones en espera sin usar
+	sqlDB.SetMaxOpenConns(100)          //maximo 100 conexiones abiertas al mismo tiempo
 	sqlDB.SetConnMaxLifetime(time.Hour) //cada conexion se recicla despues de 1 hora
 	//Evita que el sistema colapse si hay muchos usuarios al mismo tiempo
 
-
-
 	// Auto-migración: GORM crea/actualiza las tablas según los structs del dominio
-	// Orden importante: primero entidades sin dependencias (Usuario y Evento), luego las que tienen FK (Entradas)
+	// Orden: primero entidades sin dependencias (Usuario y Evento), luego las que tienen FK (Entradas)
 	err = db.AutoMigrate(
 		&domain.Usuario{},
 		&domain.Evento{},
@@ -82,7 +81,7 @@ func InicializarDB() (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error en auto-migración de GORM: %w", err)
 	}
-	//guarda la conexion en el singleton 
+	//guarda la conexion en el singleton
 	instanciaDB = db
 	log.Println("✅ Base de datos conectada y migrada correctamente")
 	return db, nil
