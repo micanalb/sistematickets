@@ -59,24 +59,15 @@ func (m *MockEntradaDAO) ContarActivas(eventoID, usuarioID uint) (int64, error) 
 }
 
 // ════════════════════════════════════════════════════════════════════
-// BD de prueba en memoria (SQLite)
+// BD de prueba en memoria (SQLite, sin CGO vía glebarez/sqlite)
 //
 // db.Transaction() necesita una conexión *gorm.DB real para abrir un
 // BEGIN/COMMIT/ROLLBACK de verdad — no se puede mockear con testify.
-// SQLite en memoria nos da esa conexión real sin depender de MySQL
-// levantado ni de credenciales: cada test arranca con una BD limpia
-// y descartable.
+// Las tablas se crean a mano con SQL crudo porque domain.Usuario usa
+// `gorm:"type:enum(...)"`, sintaxis exclusiva de MySQL que SQLite no
+// soporta en AutoMigrate.
 // ════════════════════════════════════════════════════════════════════
 
-// dbTestEnMemoria crea una conexión SQLite en memoria y crea las tablas
-// necesarias a mano con SQL crudo.
-//
-// No usamos db.AutoMigrate(&domain.Usuario{}, ...) acá porque el struct
-// domain.Usuario tiene la tag `gorm:"type:enum('cliente','administrador')"`,
-// que es sintaxis específica de MySQL — SQLite no soporta ENUM y el
-// AutoMigrate falla. Definimos las tablas a mano, con los mismos nombres
-// y columnas relevantes (rol queda como TEXT, que en SQLite acepta
-// cualquier string igual que el enum en MySQL).
 func dbTestEnMemoria(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
@@ -174,25 +165,82 @@ func TestComprarEntrada_Exitoso(t *testing.T) {
 	svc := services.NuevoEntradaService(db, mockEntradaDAO, mockEventoDAO, mockUsuarioDAO)
 
 	evento := eventoActivoConDisponibilidad()
-	insertarEventoTest(t, db, evento) // necesario para el UpdateColumn dentro de la transacción
+	insertarEventoTest(t, db, evento)
+	// Sin especificar Cantidad -> se normaliza a 1 (compra individual de siempre)
 	dto := domain.DTOComprarEntrada{EventoID: 1}
 
 	mockEventoDAO.On("BuscarPorID", uint(1)).Return(evento, nil)
 
-	entrada, err := svc.ComprarEntrada(1, dto)
+	entradas, err := svc.ComprarEntrada(1, dto)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, entrada)
-	assert.Equal(t, uint(1), entrada.UsuarioID)
-	assert.Equal(t, uint(1), entrada.EventoID)
-	assert.Equal(t, domain.EstadoEntradaActiva, entrada.Estado)
-	assert.Equal(t, evento.PrecioBase, entrada.PrecioPagado)
-	assert.NotEmpty(t, entrada.CodigoQR)
+	assert.Len(t, entradas, 1)
+	assert.Equal(t, uint(1), entradas[0].UsuarioID)
+	assert.Equal(t, uint(1), entradas[0].EventoID)
+	assert.Equal(t, domain.EstadoEntradaActiva, entradas[0].Estado)
+	assert.Equal(t, evento.PrecioBase, entradas[0].PrecioPagado)
+	assert.NotEmpty(t, entradas[0].CodigoQR)
 
-	// Verificamos que la transacción de verdad incrementó el contador en la BD
 	var eventoActualizado domain.Evento
 	db.First(&eventoActualizado, 1)
 	assert.Equal(t, 51, eventoActualizado.EntradasVendidas)
+}
+
+func TestComprarEntrada_VariasEntradasExitoso(t *testing.T) {
+	db := dbTestEnMemoria(t)
+	mockEntradaDAO := new(MockEntradaDAO)
+	mockEventoDAO := new(MockEventoDAO)
+	mockUsuarioDAO := new(MockUsuarioDAO)
+	svc := services.NuevoEntradaService(db, mockEntradaDAO, mockEventoDAO, mockUsuarioDAO)
+
+	evento := eventoActivoConDisponibilidad() // 100 capacidad, 50 vendidas -> 50 disponibles
+	insertarEventoTest(t, db, evento)
+	dto := domain.DTOComprarEntrada{EventoID: 1, Cantidad: 4}
+
+	mockEventoDAO.On("BuscarPorID", uint(1)).Return(evento, nil)
+
+	entradas, err := svc.ComprarEntrada(7, dto)
+
+	assert.NoError(t, err)
+	assert.Len(t, entradas, 4)
+
+	codigos := map[string]bool{}
+	for _, e := range entradas {
+		assert.Equal(t, uint(7), e.UsuarioID)
+		assert.Equal(t, domain.EstadoEntradaActiva, e.Estado)
+		assert.False(t, codigos[e.CodigoQR], "el código QR no debería repetirse entre entradas")
+		codigos[e.CodigoQR] = true
+	}
+
+	var eventoActualizado domain.Evento
+	db.First(&eventoActualizado, 1)
+	assert.Equal(t, 54, eventoActualizado.EntradasVendidas)
+}
+
+func TestComprarEntrada_ErrorCantidadSuperaDisponibilidad(t *testing.T) {
+	db := dbTestEnMemoria(t)
+	mockEntradaDAO := new(MockEntradaDAO)
+	mockEventoDAO := new(MockEventoDAO)
+	mockUsuarioDAO := new(MockUsuarioDAO)
+	svc := services.NuevoEntradaService(db, mockEntradaDAO, mockEventoDAO, mockUsuarioDAO)
+
+	eventoCasiAgotado := eventoActivoConDisponibilidad()
+	eventoCasiAgotado.EntradasVendidas = 98 // capacidad 100 -> solo 2 disponibles
+	insertarEventoTest(t, db, eventoCasiAgotado)
+
+	dto := domain.DTOComprarEntrada{EventoID: 1, Cantidad: 5} // pide 5, solo hay 2
+
+	mockEventoDAO.On("BuscarPorID", uint(1)).Return(eventoCasiAgotado, nil)
+
+	entradas, err := svc.ComprarEntrada(1, dto)
+
+	assert.Error(t, err)
+	assert.Nil(t, entradas)
+	assert.Contains(t, err.Error(), "solo quedan 2 entradas disponibles")
+
+	var eventoSinCambios domain.Evento
+	db.First(&eventoSinCambios, 1)
+	assert.Equal(t, 98, eventoSinCambios.EntradasVendidas)
 }
 
 func TestComprarEntrada_ErrorEventoNoExiste(t *testing.T) {
@@ -204,10 +252,10 @@ func TestComprarEntrada_ErrorEventoNoExiste(t *testing.T) {
 
 	mockEventoDAO.On("BuscarPorID", uint(999)).Return(nil, errors.New("record not found"))
 
-	entrada, err := svc.ComprarEntrada(1, domain.DTOComprarEntrada{EventoID: 999})
+	entradas, err := svc.ComprarEntrada(1, domain.DTOComprarEntrada{EventoID: 999})
 
 	assert.Error(t, err)
-	assert.Nil(t, entrada)
+	assert.Nil(t, entradas)
 	assert.Contains(t, err.Error(), "record not found")
 }
 
@@ -223,10 +271,10 @@ func TestComprarEntrada_ErrorEventoCancelado(t *testing.T) {
 
 	mockEventoDAO.On("BuscarPorID", uint(1)).Return(eventoCancelado, nil)
 
-	entrada, err := svc.ComprarEntrada(1, domain.DTOComprarEntrada{EventoID: 1})
+	entradas, err := svc.ComprarEntrada(1, domain.DTOComprarEntrada{EventoID: 1})
 
 	assert.Error(t, err)
-	assert.Nil(t, entrada)
+	assert.Nil(t, entradas)
 	assert.Contains(t, err.Error(), "no está disponible")
 }
 
@@ -242,10 +290,10 @@ func TestComprarEntrada_ErrorEventoAgotado(t *testing.T) {
 
 	mockEventoDAO.On("BuscarPorID", uint(1)).Return(eventoAgotado, nil)
 
-	entrada, err := svc.ComprarEntrada(1, domain.DTOComprarEntrada{EventoID: 1})
+	entradas, err := svc.ComprarEntrada(1, domain.DTOComprarEntrada{EventoID: 1})
 
 	assert.Error(t, err)
-	assert.Nil(t, entrada)
+	assert.Nil(t, entradas)
 	assert.Contains(t, err.Error(), "no hay entradas disponibles")
 }
 
@@ -299,8 +347,6 @@ func TestCancelarEntrada_Exitoso(t *testing.T) {
 	mockUsuarioDAO := new(MockUsuarioDAO)
 	svc := services.NuevoEntradaService(db, mockEntradaDAO, mockEventoDAO, mockUsuarioDAO)
 
-	// El evento necesita existir en la BD de prueba porque CancelarEntrada
-	// ejecuta un UpdateColumn real sobre la tabla eventos dentro de la transacción.
 	insertarEventoTest(t, db, eventoActivoConDisponibilidad())
 
 	entrada := &domain.Entrada{
@@ -318,7 +364,6 @@ func TestCancelarEntrada_Exitoso(t *testing.T) {
 	assert.Equal(t, domain.EstadoEntradaCancelada, entrada.Estado)
 	assert.NotNil(t, entrada.FechaCancelacion)
 
-	// Verificamos que la transacción de verdad liberó el cupo en la BD
 	var eventoActualizado domain.Evento
 	db.First(&eventoActualizado, 1)
 	assert.Equal(t, 49, eventoActualizado.EntradasVendidas)
@@ -333,13 +378,12 @@ func TestCancelarEntrada_ErrorPropietarioDistinto(t *testing.T) {
 
 	entrada := &domain.Entrada{
 		ID:        1,
-		UsuarioID: 5, // pertenece al usuario 5
+		UsuarioID: 5,
 		Estado:    domain.EstadoEntradaActiva,
 	}
 
 	mockEntradaDAO.On("BuscarPorID", uint(1)).Return(entrada, nil)
 
-	// El usuario 99 intenta cancelar la entrada del usuario 5
 	err := svc.CancelarEntrada(1, 99)
 
 	assert.Error(t, err)
@@ -356,7 +400,7 @@ func TestCancelarEntrada_ErrorEntradaYaCancelada(t *testing.T) {
 	entrada := &domain.Entrada{
 		ID:        1,
 		UsuarioID: 5,
-		Estado:    domain.EstadoEntradaCancelada, // ya cancelada
+		Estado:    domain.EstadoEntradaCancelada,
 	}
 
 	mockEntradaDAO.On("BuscarPorID", uint(1)).Return(entrada, nil)
@@ -406,7 +450,6 @@ func TestTransferirEntrada_Exitoso(t *testing.T) {
 	assert.Equal(t, destinatario.ID, nuevaEntrada.UsuarioID)
 	assert.Equal(t, domain.EstadoEntradaTransferida, entrada.Estado)
 
-	// Verificamos que la nueva entrada quedó persistida de verdad en la BD
 	var entradaEnDB domain.Entrada
 	db.First(&entradaEnDB, nuevaEntrada.ID)
 	assert.Equal(t, destinatario.ID, entradaEnDB.UsuarioID)

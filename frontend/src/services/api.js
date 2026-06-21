@@ -64,7 +64,9 @@ export const eventosAPI = {
 //La protección real de "quién puede hacer esto" no está acá (es solo el cliente armando la URL), está en el backend con el middleware de JWT/rol — este archivo asume que el backend va a rechazar con 401/403 si no corresponde.
 
 export const entradasAPI = {
-  comprar: (eventoID) => api.post('/entradas/comprar', { evento_id: eventoID }),
+  // cantidad es opcional — si no se pasa, el backend asume 1 (compra individual de siempre)
+  comprar: (eventoID, cantidad = 1) =>
+    api.post('/entradas/comprar', { evento_id: eventoID, cantidad }),
   misEntradas: () => api.get('/entradas/mis-entradas'),
   cancelar: (entradaID) => api.put(`/entradas/${entradaID}/cancelar`),
   transferir: (entradaID, emailDestinatario) =>
@@ -72,5 +74,5 @@ export const entradasAPI = {
 }
 //Mismo patrón para entradas: comprar, listar las propias, cancelar, transferir a otro usuario por email. 
 //cancelar y transferir son PUT (modifican un recurso existente), comprar es POST (crea uno nuevo) — convención REST correcta.
-
+//comprar acepta una cantidad opcional para permitir comprar varias entradas en una sola operación.
 export default api

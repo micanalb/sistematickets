@@ -7,12 +7,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"ticketsya/controllers"
 	"ticketsya/domain"
 	"ticketsya/utils"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 // ════════════════════════════════════════════════════════════════════
@@ -23,12 +24,12 @@ type MockEntradaService struct {
 	mock.Mock
 }
 
-func (m *MockEntradaService) ComprarEntrada(usuarioID uint, dto domain.DTOComprarEntrada) (*domain.Entrada, error) {
+func (m *MockEntradaService) ComprarEntrada(usuarioID uint, dto domain.DTOComprarEntrada) ([]domain.Entrada, error) {
 	args := m.Called(usuarioID, dto)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*domain.Entrada), args.Error(1)
+	return args.Get(0).([]domain.Entrada), args.Error(1)
 }
 
 func (m *MockEntradaService) MisEntradas(usuarioID uint) ([]domain.Entrada, error) {
@@ -81,7 +82,9 @@ func TestComprarEntrada_HTTP_201_Exitoso(t *testing.T) {
 	router := setupRouterEntrada(mockSvc)
 
 	mockSvc.On("ComprarEntrada", uint(5), mock.AnythingOfType("domain.DTOComprarEntrada")).
-		Return(&domain.Entrada{ID: 1, CodigoQR: "TKT-1-5-abc", Estado: domain.EstadoEntradaActiva}, nil)
+		Return([]domain.Entrada{
+			{ID: 1, CodigoQR: "TKT-1-5-abc", Estado: domain.EstadoEntradaActiva},
+		}, nil)
 
 	body, _ := json.Marshal(map[string]interface{}{"evento_id": 1})
 	w := httptest.NewRecorder()

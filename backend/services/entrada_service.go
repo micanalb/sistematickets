@@ -14,7 +14,7 @@ import (
 
 // EntradaService define el contrato del servicio de entradas
 type EntradaService interface {
-	ComprarEntrada(usuarioID uint, dto domain.DTOComprarEntrada) (*domain.Entrada, error)
+	ComprarEntrada(usuarioID uint, dto domain.DTOComprarEntrada) ([]domain.Entrada, error)
 	MisEntradas(usuarioID uint) ([]domain.Entrada, error)
 	CancelarEntrada(entradaID, usuarioID uint) error
 	TransferirEntrada(entradaID, usuarioID uint, dto domain.DTOTransferirEntrada) (*domain.Entrada, error)
@@ -40,15 +40,24 @@ func NuevoEntradaService(db *gorm.DB, entradaDAO dao.EntradaDAO, eventoDAO dao.E
 	}
 }
 
-// ComprarEntrada procesa la adquisición de una entrada para un evento.
-// Incluye todas las validaciones de negocio necesarias.
+// ComprarEntrada procesa la adquisición de una o más entradas para un evento.
+// dto.Cantidad indica cuántos tickets comprar en la misma operación (mínimo 1,
+// máximo 10 por compra). Si no se especifica, se normaliza a 1 para mantener
+// compatible el comportamiento de compra individual.
 //
-// Las validaciones (evento existe, está activo, hay disponibilidad) se hacen
-// ANTES de abrir la transacción para fallar rápido sin tomar locks innecesarios.
-// La escritura (crear entrada + incrementar ventas) se ejecuta dentro de
-// db.Transaction: si cualquiera de los dos pasos falla, GORM hace ROLLBACK
-// automático y ninguno de los cambios queda guardado.
-func (s *entradaServiceImpl) ComprarEntrada(usuarioID uint, dto domain.DTOComprarEntrada) (*domain.Entrada, error) {
+// Las validaciones (evento existe, está activo, hay disponibilidad para TODA
+// la cantidad solicitada) se hacen ANTES de abrir la transacción para fallar
+// rápido sin tomar locks innecesarios. La escritura (crear las N entradas +
+// incrementar ventas en N) se ejecuta dentro de db.Transaction: si cualquier
+// paso falla, GORM hace ROLLBACK automático y ninguna de las entradas queda
+// guardada — no puede pasar que se cobren 3 y se acrediten 2.
+func (s *entradaServiceImpl) ComprarEntrada(usuarioID uint, dto domain.DTOComprarEntrada) ([]domain.Entrada, error) {
+	// 0. Normalizar cantidad: si no vino o vino en 0, es una compra de 1 entrada
+	cantidad := dto.Cantidad
+	if cantidad <= 0 {
+		cantidad = 1
+	}
+
 	// 1. Verificar que el evento existe y está activo
 	evento, err := s.eventoDAO.BuscarPorID(dto.EventoID)
 	if err != nil {
@@ -63,33 +72,42 @@ func (s *entradaServiceImpl) ComprarEntrada(usuarioID uint, dto domain.DTOCompra
 		return nil, fmt.Errorf("el evento no está disponible para compra (estado: %s)", evento.Estado)
 	}
 
-	// 3. Verificar disponibilidad de entradas
-	if !evento.TieneDisponibilidad() {
+	// 3. Verificar que hay disponibilidad suficiente para TODA la cantidad pedida.
+	//    No alcanza con TieneDisponibilidad() (que solo chequea >0); si alguien
+	//    pide 5 y quedan 3, debe rechazarse la operación completa.
+	disponibles := evento.DisponibilidadEntradas()
+	if disponibles <= 0 {
 		return nil, errors.New("no hay entradas disponibles para este evento")
 	}
-
-	// 4. Crear la entrada con código QR único
-	codigoQR := utils.GenerarCodigoQR(evento.ID, usuarioID)
-	entrada := &domain.Entrada{
-		CodigoQR:     codigoQR,
-		UsuarioID:    usuarioID,
-		EventoID:     dto.EventoID,
-		PrecioPagado: evento.PrecioBase,
-		Estado:       domain.EstadoEntradaActiva,
-		FechaCompra:  time.Now(),
+	if cantidad > disponibles {
+		return nil, fmt.Errorf("solo quedan %d entradas disponibles, no se pueden comprar %d", disponibles, cantidad)
 	}
 
-	// 5. Crear entrada + incrementar ventas en una única transacción atómica.
-	//    Si IncrementarVentas falla después de Crear, GORM revierte el Crear
-	//    automáticamente — no queda una entrada "fantasma" sin contabilizar.
+	// 4. Construir las N entradas en memoria, cada una con su propio código QR único
+	entradas := make([]domain.Entrada, cantidad)
+	for i := 0; i < cantidad; i++ {
+		entradas[i] = domain.Entrada{
+			CodigoQR:     utils.GenerarCodigoQR(evento.ID, usuarioID),
+			UsuarioID:    usuarioID,
+			EventoID:     dto.EventoID,
+			PrecioPagado: evento.PrecioBase,
+			Estado:       domain.EstadoEntradaActiva,
+			FechaCompra:  time.Now(),
+		}
+	}
+
+	// 5. Crear las N entradas + incrementar ventas en N, en una única transacción
+	//    atómica. Si falla cualquier paso a mitad de camino, GORM revierte todo
+	//    lo creado hasta ese punto — no quedan entradas "fantasma" sin contabilizar.
 	err = s.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(entrada).Error; err != nil {
-			return fmt.Errorf("error al crear entrada: %w", err)
+		// gorm.Create con un slice inserta todas las filas en una sola operación
+		if err := tx.Create(&entradas).Error; err != nil {
+			return fmt.Errorf("error al crear entradas: %w", err)
 		}
 
 		if err := tx.Model(&domain.Evento{}).
 			Where("id = ?", dto.EventoID).
-			UpdateColumn("entradas_vendidas", gorm.Expr("entradas_vendidas + 1")).Error; err != nil {
+			UpdateColumn("entradas_vendidas", gorm.Expr("entradas_vendidas + ?", cantidad)).Error; err != nil {
 			return fmt.Errorf("error al actualizar disponibilidad: %w", err)
 		}
 
@@ -99,9 +117,11 @@ func (s *entradaServiceImpl) ComprarEntrada(usuarioID uint, dto domain.DTOCompra
 		return nil, err
 	}
 
-	// 6. Cargar los datos del evento en la respuesta
-	entrada.Evento = evento
-	return entrada, nil
+	// 6. Cargar los datos del evento en cada entrada de la respuesta
+	for i := range entradas {
+		entradas[i].Evento = evento
+	}
+	return entradas, nil
 }
 
 // MisEntradas retorna el historial de entradas del usuario autenticado
