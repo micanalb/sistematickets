@@ -47,7 +47,7 @@ func main() {
 	authService := services.NuevoAuthService(usuarioDAO)
 	eventoService := services.NuevoEventoService(eventoDAO)
 	entradaService := services.NuevoEntradaService(db, entradaDAO, eventoDAO, usuarioDAO)
-	transporteService := services.NuevoTransporteService(transporteDAO, entradaDAO)
+	transporteService := services.NuevoTransporteService(transporteDAO, entradaDAO, usuarioDAO)
 
 	//La lógica de negocio. Por ejemplo, entradaService recibe tres DAOs (entradaDAO, eventoDAO, usuarioDAO)
 	// porque necesita validar cosas como "¿existe el evento?" o "¿existe el usuario?" antes de crear una entrada.
