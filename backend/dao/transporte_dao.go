@@ -13,9 +13,12 @@ type TransporteDAO interface {
 	BuscarPorID(id uint) (*domain.AsistenteTransporte, error)
 	Actualizar(asistente *domain.AsistenteTransporte) error
 	// ListarComparteAutoPorEvento devuelve todos los registros donde algún
-	// usuario ofreció compartir su auto para ese evento. Se usa en la Parte 2
-	// (matching) para mostrarle a un usuario las ofertas disponibles.
+	// usuario ofreció compartir su auto para ese evento, excluyendo al propio
+	// usuario que consulta (no tiene sentido que se vea a sí mismo como opción).
 	ListarComparteAutoPorEvento(eventoID uint, excluirUsuarioID uint) ([]domain.AsistenteTransporte, error)
+	// ListarSolicitudesPendientesPorDueno devuelve los registros del usuario
+	// dueño del auto que tienen una solicitud de match pendiente de respuesta.
+	ListarSolicitudesPendientesPorDueno(usuarioID uint) ([]domain.AsistenteTransporte, error)
 }
 
 type transporteDAOImpl struct {
@@ -70,6 +73,19 @@ func (dao *transporteDAOImpl) ListarComparteAutoPorEvento(eventoID uint, excluir
 		Preload("Usuario").
 		Where("evento_id = ? AND modo = ? AND comparte_auto = ? AND usuario_id != ?",
 			eventoID, domain.ModoAutoPropio, true, excluirUsuarioID).
+		Find(&asistentes)
+	return asistentes, resultado.Error
+}
+
+// ListarSolicitudesPendientesPorDueno se usa para que el dueño del auto vea,
+// desde su propia vista, quién le pidió compartir el viaje y todavía no
+// respondió. Filtra por usuario_id (el dueño) y estado_match = 'pendiente'.
+func (dao *transporteDAOImpl) ListarSolicitudesPendientesPorDueno(usuarioID uint) ([]domain.AsistenteTransporte, error) {
+	var asistentes []domain.AsistenteTransporte
+	resultado := dao.db.
+		Preload("UsuarioMatch").
+		Preload("Evento").
+		Where("usuario_id = ? AND estado_match = ?", usuarioID, domain.EstadoMatchPendiente).
 		Find(&asistentes)
 	return asistentes, resultado.Error
 }

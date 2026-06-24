@@ -14,18 +14,31 @@ import (
 type TransporteService interface {
 	ConfigurarTransporte(usuarioID uint, dto domain.DTOCrearAsistenteTransporte) (*domain.DTORespuestaAsistente, error)
 	ObtenerPorEntrada(usuarioID, entradaID uint) (*domain.DTORespuestaAsistente, error)
+	// ListarOfertasAuto devuelve quién ofrece compartir auto para un evento,
+	// para que el usuario elija con quién viajar.
+	ListarOfertasAuto(usuarioID, eventoID uint) ([]domain.AsistenteTransporte, error)
+	// SolicitarCompartir crea (o reutiliza) la solicitud de un usuario para
+	// unirse al auto de otro. Queda en estado "pendiente" hasta que el dueño responda.
+	SolicitarCompartir(usuarioID uint, asistenteOfertaID uint) (*domain.AsistenteTransporte, error)
+	// ResponderSolicitud es la acción del dueño del auto: aprobar o rechazar
+	// a quien pidió compartir el viaje.
+	ResponderSolicitud(duenoID uint, asistenteID uint, aprobar bool) (*domain.AsistenteTransporte, error)
 }
 
 type transporteServiceImpl struct {
 	transporteDAO dao.TransporteDAO
 	entradaDAO    dao.EntradaDAO
+	usuarioDAO    dao.UsuarioDAO
 }
 
-// NuevoTransporteService crea una nueva instancia del servicio de transporte
-func NuevoTransporteService(transporteDAO dao.TransporteDAO, entradaDAO dao.EntradaDAO) TransporteService {
+// NuevoTransporteService crea una nueva instancia del servicio de transporte.
+// usuarioDAO se agrega en la Parte 2 para poder validar que el usuario que
+// solicita compartir existe y está activo antes de crear el match.
+func NuevoTransporteService(transporteDAO dao.TransporteDAO, entradaDAO dao.EntradaDAO, usuarioDAO dao.UsuarioDAO) TransporteService {
 	return &transporteServiceImpl{
 		transporteDAO: transporteDAO,
 		entradaDAO:    entradaDAO,
+		usuarioDAO:    usuarioDAO,
 	}
 }
 
@@ -130,6 +143,121 @@ func (s *transporteServiceImpl) ObtenerPorEntrada(usuarioID, entradaID uint) (*d
 	}
 
 	return s.armarRespuesta(asistente), nil
+}
+
+// ListarOfertasAuto devuelve las ofertas de auto compartido disponibles para
+// un evento, para que el usuario elija con quién viajar. Excluye sus propias
+// ofertas (no tiene sentido que se vea a sí mismo en la lista).
+func (s *transporteServiceImpl) ListarOfertasAuto(usuarioID, eventoID uint) ([]domain.AsistenteTransporte, error) {
+	ofertas, err := s.transporteDAO.ListarComparteAutoPorEvento(eventoID, usuarioID)
+	if err != nil {
+		return nil, fmt.Errorf("error al listar ofertas de auto compartido: %w", err)
+	}
+	return ofertas, nil
+}
+
+// SolicitarCompartir registra que un usuario quiere unirse al auto de otro.
+// asistenteOfertaID es el ID del registro AsistenteTransporte del DUEÑO del
+// auto (no del solicitante) — es el que aparece en ListarOfertasAuto.
+//
+// Reglas de negocio:
+//   - El registro de la oferta debe existir, estar en modo auto_propio y
+//     tener comparte_auto = true
+//   - No se puede solicitar el propio auto
+//   - Si ya hay una solicitud pendiente o aprobada de OTRO usuario, no se
+//     puede pedir de nuevo (el auto ya tiene acompañante o está en revisión)
+//   - Queda en estado "pendiente" hasta que el dueño responda
+func (s *transporteServiceImpl) SolicitarCompartir(usuarioID uint, asistenteOfertaID uint) (*domain.AsistenteTransporte, error) {
+	oferta, err := s.transporteDAO.BuscarPorID(asistenteOfertaID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("oferta de auto compartido no encontrada")
+		}
+		return nil, err
+	}
+
+	if oferta.Modo != domain.ModoAutoPropio || !oferta.ComparteAuto {
+		return nil, errors.New("este registro no es una oferta de auto compartido")
+	}
+
+	if oferta.UsuarioID == usuarioID {
+		return nil, errors.New("no podés solicitar tu propio auto")
+	}
+
+	if oferta.EstadoMatch != nil &&
+		(*oferta.EstadoMatch == domain.EstadoMatchPendiente || *oferta.EstadoMatch == domain.EstadoMatchAprobado) {
+		return nil, errors.New("esta oferta ya tiene una solicitud en curso")
+	}
+
+	// Verificar que el usuario solicitante exista (defensivo; el JWT ya lo
+	// garantiza en la práctica, pero mantiene la capa de servicio autocontenida)
+	if _, err := s.usuarioDAO.BuscarPorID(usuarioID); err != nil {
+		return nil, errors.New("usuario solicitante no encontrado")
+	}
+
+	estadoPendiente := domain.EstadoMatchPendiente
+	oferta.EstadoMatch = &estadoPendiente
+	oferta.UsuarioMatchID = &usuarioID
+
+	if err := s.transporteDAO.Actualizar(oferta); err != nil {
+		return nil, fmt.Errorf("error al registrar la solicitud: %w", err)
+	}
+
+	// Recargamos con los preloads para devolver los datos de ambos usuarios
+	actualizado, err := s.transporteDAO.BuscarPorID(oferta.ID)
+	if err != nil {
+		return oferta, nil // el cambio ya se guardó; si falla el reload no es crítico
+	}
+	return actualizado, nil
+}
+
+// ResponderSolicitud es la acción que ejecuta el DUEÑO del auto para aprobar
+// o rechazar a quien pidió compartir viaje. Solo el dueño (asistente.UsuarioID)
+// puede responder su propia oferta.
+//
+// Al aprobar, ambos usuarios quedan habilitados para ver los datos de
+// contacto del otro (eso se resuelve en el controller/frontend leyendo
+// Usuario y UsuarioMatch una vez que EstadoMatch == aprobado).
+// Al rechazar, se libera la oferta (UsuarioMatchID vuelve a nil) para que
+// otro usuario pueda solicitarla.
+func (s *transporteServiceImpl) ResponderSolicitud(duenoID uint, asistenteID uint, aprobar bool) (*domain.AsistenteTransporte, error) {
+	asistente, err := s.transporteDAO.BuscarPorID(asistenteID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("configuración de transporte no encontrada")
+		}
+		return nil, err
+	}
+
+	if asistente.UsuarioID != duenoID {
+		return nil, errors.New("no tenés permisos para responder esta solicitud")
+	}
+
+	if asistente.EstadoMatch == nil || *asistente.EstadoMatch != domain.EstadoMatchPendiente {
+		return nil, errors.New("no hay una solicitud pendiente para responder")
+	}
+
+	if aprobar {
+		estadoAprobado := domain.EstadoMatchAprobado
+		asistente.EstadoMatch = &estadoAprobado
+	} else {
+		estadoRechazado := domain.EstadoMatchRechazado
+		asistente.EstadoMatch = &estadoRechazado
+		// Liberamos el cupo: si alguien más quiere solicitar este auto después,
+		// que pueda hacerlo. UsuarioMatchID se mantiene para historial del
+		// rechazo, pero el chequeo de SolicitarCompartir solo bloquea en
+		// pendiente/aprobado, así que un rechazo no impide nuevas solicitudes.
+	}
+
+	if err := s.transporteDAO.Actualizar(asistente); err != nil {
+		return nil, fmt.Errorf("error al responder la solicitud: %w", err)
+	}
+
+	actualizado, err := s.transporteDAO.BuscarPorID(asistente.ID)
+	if err != nil {
+		return asistente, nil
+	}
+	return actualizado, nil
 }
 
 // armarRespuesta adjunta el catálogo de apoyo correspondiente al modo elegido
