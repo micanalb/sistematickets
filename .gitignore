@@ -42,3 +42,4 @@ logs/
 # ── Coverage de tests ──────────────────────────────────────────────
 coverage.out
 coverage.html
+node_modules/

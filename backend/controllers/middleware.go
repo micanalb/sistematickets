@@ -3,9 +3,10 @@ package controllers
 import (
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"ticketsya/domain"
 	"ticketsya/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -41,6 +42,8 @@ func MiddlewareAutenticacion() gin.HandlerFunc {
 		tokenString := partes[1]
 
 		// Validar y parsear el token
+		//El err != nil + c.Abort() confirma que si el token está vencido o mal firmado,
+		//la cadena se corta ahí y nunca llega al controller.
 		claims, err := utils.ValidarTokenJWT(tokenString)
 		if err != nil {
 			utils.ResponderNoAutorizado(c, "token inválido o expirado")
@@ -49,6 +52,8 @@ func MiddlewareAutenticacion() gin.HandlerFunc {
 		}
 
 		// Inyectar datos del usuario en el contexto para uso en los controladores
+		//Esto pasa dentro de MiddlewareAutenticacion, y el claims.Rol viene de adentro del JWT ya validado
+		//no de un header separado ni de un parámetro de la URL que el usuario podría falsificar.
 		c.Set(ClaveUsuarioID, claims.UsuarioID)
 		c.Set(ClaveUsuarioRol, claims.Rol)
 		c.Set(ClaveUsuarioEmail, claims.Email)

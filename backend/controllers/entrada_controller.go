@@ -1,10 +1,11 @@
 package controllers
 
 import (
-	"github.com/gin-gonic/gin"
 	"ticketsya/domain"
 	"ticketsya/services"
 	"ticketsya/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 // EntradaController maneja los endpoints de compra, cancelación y transferencia de entradas
@@ -19,6 +20,8 @@ func NuevoEntradaController(entradaService services.EntradaService) *EntradaCont
 
 // RegistrarRutas registra las rutas de entradas en el router
 // Todas las rutas de entradas requieren autenticación (son operaciones del cliente)
+// El entradas.Use(MiddlewareAutenticacion()) se aplica a todo el grupo
+// significa que las 4 rutas de abajo heredan esa protección automáticamente, sin que cada una lo tenga que declarar individualmente. Por eso alcanza con verificarlo una sola vez ahí arriba.
 func (ctrl *EntradaController) RegistrarRutas(router *gin.RouterGroup) {
 	entradas := router.Group("/entradas")
 	entradas.Use(MiddlewareAutenticacion())
@@ -30,7 +33,7 @@ func (ctrl *EntradaController) RegistrarRutas(router *gin.RouterGroup) {
 	}
 }
 
-// ComprarEntrada procesa la compra de una entrada
+// ComprarEntrada procesa la compra de una o más entradas (ver dto.Cantidad)
 // POST /api/v1/entradas/comprar
 func (ctrl *EntradaController) ComprarEntrada(c *gin.Context) {
 	usuarioID, ok := obtenerUsuarioIDDelContexto(c)
@@ -45,14 +48,17 @@ func (ctrl *EntradaController) ComprarEntrada(c *gin.Context) {
 		return
 	}
 
-	entrada, err := ctrl.entradaService.ComprarEntrada(usuarioID, dto)
+	entradas, err := ctrl.entradaService.ComprarEntrada(usuarioID, dto)
 	if err != nil {
 		// Distintos errores de negocio que pueden ocurrir
 		utils.ResponderBadRequest(c, err.Error())
 		return
 	}
 
-	utils.ResponderCreado(c, entrada)
+	utils.ResponderCreado(c, gin.H{
+		"entradas": entradas,
+		"cantidad": len(entradas),
+	})
 }
 
 // MisEntradas retorna el historial de entradas del usuario autenticado

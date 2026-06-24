@@ -13,24 +13,33 @@ const ETIQUETAS_CATEGORIA = {
   otro: '📌 Otro',
 }
 
-// ── Modal éxito — SIN código QR ───────────────────────────────────
-function ModalExito({ entrada, onCerrar }) {
+const MAX_ENTRADAS_POR_COMPRA = 10
+
+// ── Modal éxito — SIN código QR, ahora muestra cantidad y total ───
+function ModalExito({ entradas, onCerrar }) {
+  const cantidad = entradas?.length || 0
+  const totalPagado = entradas?.reduce((suma, e) => suma + (e.precio_pagado || 0), 0) || 0
+
   return (
     <div className="modal-overlay" onClick={onCerrar}>
       <div className="modal modal-exito" onClick={(e) => e.stopPropagation()}>
         <div className="modal-exito-icono">🎉</div>
-        <h2>¡Entrada confirmada!</h2>
+        <h2>{cantidad > 1 ? '¡Entradas confirmadas!' : '¡Entrada confirmada!'}</h2>
         <p className="modal-exito-subtitulo">Tu compra se procesó exitosamente.</p>
 
         <div className="modal-exito-detalle">
+          <div className="detalle-fila">
+            <span>Cantidad</span>
+            <strong>{cantidad} {cantidad === 1 ? 'entrada' : 'entradas'}</strong>
+          </div>
           <div className="detalle-fila">
             <span>Estado</span>
             <span className="badge badge-activa">Activa</span>
           </div>
           <div className="detalle-fila">
-            <span>Precio pagado</span>
+            <span>Total pagado</span>
             <strong className="texto-acento">
-              ${entrada?.precio_pagado?.toLocaleString('es-AR')}
+              ${totalPagado.toLocaleString('es-AR')}
             </strong>
           </div>
         </div>
@@ -58,7 +67,8 @@ export default function PaginaDetalle() {
   const [error, setError] = useState('')
   const [comprando, setComprando] = useState(false)
   const [errorCompra, setErrorCompra] = useState('')
-  const [entradaComprada, setEntradaComprada] = useState(null)
+  const [entradasCompradas, setEntradasCompradas] = useState(null)
+  const [cantidad, setCantidad] = useState(1)
 
   useEffect(() => {
     const cargar = async () => {
@@ -78,6 +88,19 @@ export default function PaginaDetalle() {
     cargar()
   }, [id])
 
+  // Tope real: no se puede pedir más que lo disponible ni más que el máximo por compra
+  const disponiblesActuales = evento ? evento.capacidad_total - evento.entradas_vendidas : 0
+  const topeCompra = Math.min(MAX_ENTRADAS_POR_COMPRA, disponiblesActuales)
+
+  const handleCambiarCantidad = (delta) => {
+    setCantidad(prev => {
+      const nueva = prev + delta
+      if (nueva < 1) return 1
+      if (nueva > topeCompra) return topeCompra
+      return nueva
+    })
+  }
+
   const handleComprar = async () => {
     if (!estaAutenticado) {
       navigate('/login')
@@ -88,13 +111,16 @@ export default function PaginaDetalle() {
     setErrorCompra('')
 
     try {
-      const response = await entradasAPI.comprar(evento.id)
+      const response = await entradasAPI.comprar(evento.id, cantidad)
+      const entradas = response.data.datos?.entradas || []
+
       // Actualizar disponibilidad en pantalla sin recargar
       setEvento(prev => ({
         ...prev,
-        entradas_vendidas: prev.entradas_vendidas + 1
+        entradas_vendidas: prev.entradas_vendidas + cantidad
       }))
-      setEntradaComprada(response.data.datos)
+      setEntradasCompradas(entradas)
+      setCantidad(1) // resetear el selector para la próxima compra
     } catch (err) {
       const mensaje = err.response?.data?.error || 'No se pudo procesar la compra.'
       setErrorCompra(mensaje)
@@ -133,6 +159,7 @@ export default function PaginaDetalle() {
   const disponibles = evento.capacidad_total - evento.entradas_vendidas
   const porcentajeOcupacion = (evento.entradas_vendidas / evento.capacidad_total) * 100
   const agotado = disponibles <= 0 || evento.estado !== 'activo'
+  const precioTotal = evento.precio_base * cantidad
 
   return (
     <div className="pagina-detalle">
@@ -237,6 +264,46 @@ export default function PaginaDetalle() {
 
               <div className="separador" />
 
+              {/* Selector de cantidad — solo si hay más de 1 disponible y no está agotado */}
+              {!agotado && estaAutenticado && (
+                <div className="selector-cantidad">
+                  <span className="selector-cantidad-label">Cantidad de entradas</span>
+                  <div className="selector-cantidad-controles">
+                    <button
+                      type="button"
+                      className="btn-cantidad"
+                      onClick={() => handleCambiarCantidad(-1)}
+                      disabled={cantidad <= 1 || comprando}
+                      aria-label="Restar una entrada"
+                    >
+                      −
+                    </button>
+                    <span className="selector-cantidad-valor">{cantidad}</span>
+                    <button
+                      type="button"
+                      className="btn-cantidad"
+                      onClick={() => handleCambiarCantidad(1)}
+                      disabled={cantidad >= topeCompra || comprando}
+                      aria-label="Sumar una entrada"
+                    >
+                      +
+                    </button>
+                  </div>
+                  {topeCompra < MAX_ENTRADAS_POR_COMPRA && (
+                    <span className="selector-cantidad-hint">
+                      Máximo {topeCompra} {topeCompra === 1 ? 'entrada' : 'entradas'} (disponibilidad limitada)
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {!agotado && cantidad > 1 && evento.precio_base > 0 && (
+                <div className="sidebar-total">
+                  <span>Total ({cantidad} entradas)</span>
+                  <strong className="texto-acento">${precioTotal.toLocaleString('es-AR')}</strong>
+                </div>
+              )}
+
               {errorCompra && (
                 <div className="alerta alerta-error">{errorCompra}</div>
               )}
@@ -257,8 +324,10 @@ export default function PaginaDetalle() {
                       <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
                       Procesando...
                     </>
+                  ) : estaAutenticado ? (
+                    cantidad > 1 ? `🎫 Comprar ${cantidad} entradas` : '🎫 Comprar entrada'
                   ) : (
-                    estaAutenticado ? '🎫 Comprar entrada' : 'Iniciá sesión para comprar'
+                    'Iniciá sesión para comprar'
                   )}
                 </button>
               )}
@@ -273,10 +342,10 @@ export default function PaginaDetalle() {
         </div>
       </div>
 
-      {entradaComprada && (
+      {entradasCompradas && (
         <ModalExito
-          entrada={entradaComprada}
-          onCerrar={() => setEntradaComprada(null)}
+          entradas={entradasCompradas}
+          onCerrar={() => setEntradasCompradas(null)}
         />
       )}
     </div>
