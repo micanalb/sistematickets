@@ -18,7 +18,9 @@
   margin-bottom: 4px;
 }
 
-.mis-entradas-seccion { margin-bottom: 40px; }
+.mis-entradas-seccion {
+  margin-bottom: 40px;
+}
 
 .seccion-titulo {
   font-size: 1.1rem;
@@ -42,7 +44,10 @@
   padding: 24px;
   transition: border-color var(--transicion);
 }
-.entrada-card:hover { border-color: rgba(249,115,22,0.3); }
+
+.entrada-card:hover {
+  border-color: rgba(249, 115, 22, 0.3);
+}
 
 .entrada-card-header {
   display: flex;
@@ -77,8 +82,14 @@
   align-items: center;
   font-size: 0.875rem;
 }
-.entrada-dato > span:first-child { color: var(--color-texto-secundario); }
-.entrada-dato strong { font-weight: 500; }
+
+.entrada-dato>span:first-child {
+  color: var(--color-texto-secundario);
+}
+
+.entrada-dato strong {
+  font-weight: 500;
+}
 
 .codigo-qr-mini {
   font-size: 0.7rem;
@@ -101,5 +112,145 @@
   padding: 80px 0;
   color: var(--color-texto-secundario);
 }
-.sin-entradas-icono { font-size: 3rem; display: block; margin-bottom: 16px; }
-.sin-entradas h3 { font-size: 1.2rem; margin-bottom: 8px; color: var(--color-texto); }
+
+.sin-entradas-icono {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.sin-entradas h3 {
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+  color: var(--color-texto);
+}
+
+
+/* ── Modal Asistente de Transporte ─────────────────────────────────── */
+.modal-transporte {
+  max-width: 480px;
+}
+
+.transporte-opciones {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.transporte-opcion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px 20px;
+  background: var(--color-fondo-3);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transicion), background var(--transicion);
+  width: 100%;
+}
+
+.transporte-opcion:hover:not(:disabled) {
+  border-color: var(--color-acento);
+  background: var(--color-acento-suave);
+}
+
+.transporte-opcion:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.transporte-opcion-icono {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-acento);
+}
+
+.transporte-opcion-titulo {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.transporte-opcion-desc {
+  font-size: 0.82rem;
+  color: var(--color-texto-secundario);
+}
+
+.transporte-subtitulo {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.transporte-lista-lineas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.transporte-linea-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--color-fondo-3);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.transporte-linea-item input[type="radio"] {
+  accent-color: var(--color-acento);
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.transporte-resumen {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: var(--color-fondo-3);
+  border-radius: var(--radio);
+  margin-bottom: 16px;
+}
+
+.transporte-resumen-icono {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-acento);
+  flex-shrink: 0;
+}
+
+.transporte-toggle-comparte {
+  display: flex;
+  gap: 10px;
+}
+
+.transporte-toggle-comparte .btn {
+  flex: 1;
+}
+
+.transporte-lista-estacionamientos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.transporte-estacionamiento-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--color-fondo-3);
+  border-radius: var(--radio);
+  font-size: 0.875rem;
+}

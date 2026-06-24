@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { entradasAPI } from '../services/api'
+import { entradasAPI, transporteAPI } from '../services/api'
 import './PaginaMisEntradas.css'
 
 const ETIQUETA_ESTADO = {
-  activa:      { label: 'Activa',      clase: 'badge-activa' },
-  cancelada:   { label: 'Cancelada',   clase: 'badge-cancelada' },
-  usada:       { label: 'Usada',       clase: 'badge-usada' },
+  activa: { label: 'Activa', clase: 'badge-activa' },
+  cancelada: { label: 'Cancelada', clase: 'badge-cancelada' },
+  usada: { label: 'Usada', clase: 'badge-usada' },
   transferida: { label: 'Transferida', clase: 'badge-transferida' },
 }
 
@@ -82,8 +82,232 @@ function ModalTransferir({ entrada, onConfirmar, onCerrar, cargando }) {
   )
 }
 
+/* ── Modal Asistente de Transporte ──────────────────────────────────
+   Flujo:
+   1. Si la entrada ya tiene transporte configurado, se carga directo
+      en la vista de detalle (colectivo o auto_propio).
+   2. Si no tiene nada, se muestra el selector de 3 modos.
+   3. Colectivo: elegir línea -> guardar -> ver línea elegida + link horarios.
+   4. Auto propio: elegir si comparte o no -> guardar -> ver estacionamientos.
+   El modo "compartido" (buscar auto de otro) se agrega en la próxima parte;
+   por ahora ese botón usa el mismo flujo de auto propio para no dejar un
+   estado roto en la UI mientras se construye esa parte.
+──────────────────────────────────────────────────────────────────── */
+function ModalAsistenteTransporte({ entrada, onCerrar }) {
+  const [cargando, setCargando] = useState(true)
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
+  const [asistente, setAsistente] = useState(null)
+  const [lineasColectivo] = useState([
+    { linea: 'Línea 1', recorrido: 'Centro - Estadio', url_horario: 'https://cordoba.gob.ar/tu-bondi/' },
+    { linea: 'Línea 7', recorrido: 'Terminal - Centro', url_horario: 'https://cordoba.gob.ar/tu-bondi/' },
+    { linea: 'Línea 14', recorrido: 'Barrio Norte - Estadio', url_horario: 'https://cordoba.gob.ar/tu-bondi/' },
+    { linea: 'Línea 20', recorrido: 'Circunvalación', url_horario: 'https://cordoba.gob.ar/tu-bondi/' },
+  ])
+  const [estacionamientos] = useState([
+    { nombre: 'Parking Centro', direccion: 'Av. Principal 450', distancia: '200m del lugar' },
+    { nombre: 'Estacionamiento Plaza', direccion: 'San Martín 120', distancia: '350m del lugar' },
+    { nombre: 'Parking Estadio', direccion: 'Av. del Estadio 10', distancia: '100m del lugar' },
+  ])
+  const [lineaSeleccionada, setLineaSeleccionada] = useState('')
+
+  const cargarAsistente = async () => {
+    setCargando(true)
+    setError('')
+    try {
+      const res = await transporteAPI.obtenerPorEntrada(entrada.id)
+      const datos = res.data.datos
+      setAsistente(datos?.asistente || null)
+    } catch {
+      setAsistente(null)
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  useEffect(() => { cargarAsistente() }, [])
+
+  const guardarModo = async (datosExtra) => {
+    setGuardando(true)
+    setError('')
+    try {
+      const res = await transporteAPI.configurar({
+        entrada_id: entrada.id,
+        ...datosExtra,
+      })
+      const datos = res.data.datos
+      setAsistente(datos?.asistente || null)
+    } catch (err) {
+      setError(err.response?.data?.error || 'No se pudo guardar la configuración.')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  const elegirColectivo = () => {
+    // No llamamos al backend todavía -- el modo "colectivo" recién se guarda
+    // cuando el usuario elige una línea específica (el backend exige
+    // linea_colectivo si modo=colectivo). Mientras tanto, mostramos el
+    // selector de líneas con un estado "en memoria" temporal.
+    setAsistente({ modo: 'colectivo', linea_colectivo: '' })
+  }
+  const elegirAutoPropio = () => guardarModo({ modo: 'auto_propio', comparte_auto: false })
+
+  const confirmarLinea = () => {
+    if (!lineaSeleccionada) { setError('Elegí una línea de colectivo.'); return }
+    guardarModo({ modo: 'colectivo', linea_colectivo: lineaSeleccionada })
+  }
+
+  const cambiarComparteAuto = (comparte) => {
+    guardarModo({ modo: 'auto_propio', comparte_auto: comparte })
+  }
+
+  const handleCambiarModo = () => {
+    setAsistente(null)
+    setLineaSeleccionada('')
+    setError('')
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onCerrar}>
+      <div className="modal modal-transporte" onClick={e => e.stopPropagation()}>
+        <div className="modal-admin-header">
+          <h2>Asistente de transporte</h2>
+          <button className="btn-cerrar" onClick={onCerrar}>X</button>
+        </div>
+        <p className="texto-secundario" style={{ marginBottom: 16 }}>
+          {entrada.evento?.titulo}
+        </p>
+
+        {error && <div className="alerta alerta-error" style={{ marginBottom: 16 }}>{error}</div>}
+
+        {cargando ? (
+          <div className="cargando-contenedor" style={{ minHeight: 120 }}>
+            <div className="spinner" /><span>Cargando...</span>
+          </div>
+        ) : !asistente ? (
+          <div className="transporte-opciones">
+            <button className="transporte-opcion" onClick={elegirColectivo} disabled={guardando}>
+              <span className="transporte-opcion-icono">Bus</span>
+              <span className="transporte-opcion-titulo">Colectivo</span>
+              <span className="transporte-opcion-desc">Ver líneas y horarios</span>
+            </button>
+            <button className="transporte-opcion" onClick={elegirAutoPropio} disabled={guardando}>
+              <span className="transporte-opcion-icono">Auto</span>
+              <span className="transporte-opcion-titulo">Auto propio</span>
+              <span className="transporte-opcion-desc">Estacionamientos cercanos</span>
+            </button>
+            <button className="transporte-opcion" onClick={elegirAutoPropio} disabled={guardando}>
+              <span className="transporte-opcion-icono">Compartir</span>
+              <span className="transporte-opcion-titulo">Compartido</span>
+              <span className="transporte-opcion-desc">Viajar con otro asistente</span>
+            </button>
+          </div>
+        ) : asistente.modo === 'colectivo' && !asistente.linea_colectivo ? (
+          <div>
+            <h3 className="transporte-subtitulo">Elegí tu línea</h3>
+            <div className="transporte-lista-lineas">
+              {lineasColectivo.map(l => (
+                <label key={l.linea} className="transporte-linea-item">
+                  <input
+                    type="radio"
+                    name="linea"
+                    value={l.linea}
+                    checked={lineaSeleccionada === l.linea}
+                    onChange={() => setLineaSeleccionada(l.linea)}
+                  />
+                  <div>
+                    <strong>{l.linea}</strong>
+                    <span className="texto-secundario"> — {l.recorrido}</span>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div className="modal-admin-footer">
+              <button className="btn btn-secundario" onClick={handleCambiarModo} disabled={guardando}>
+                Volver
+              </button>
+              <button className="btn btn-primario" onClick={confirmarLinea} disabled={guardando}>
+                {guardando ? 'Guardando...' : 'Confirmar línea'}
+              </button>
+            </div>
+          </div>
+        ) : asistente.modo === 'colectivo' ? (
+          <div>
+            <div className="transporte-resumen">
+              <span className="transporte-resumen-icono">Bus</span>
+              <div>
+                <strong>{asistente.linea_colectivo}</strong>
+                <p className="texto-secundario" style={{ margin: 0 }}>
+                  {lineasColectivo.find(l => l.linea === asistente.linea_colectivo)?.recorrido}
+                </p>
+              </div>
+            </div>
+            <a
+              className="btn btn-primario"
+              style={{ width: '100%', textAlign: 'center', display: 'block', textDecoration: 'none' }}
+              href={lineasColectivo.find(l => l.linea === asistente.linea_colectivo)?.url_horario || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Ver horarios de la línea
+            </a>
+            <button className="btn btn-secundario" style={{ width: '100%', marginTop: 12 }} onClick={handleCambiarModo}>
+              Cambiar de medio de transporte
+            </button>
+          </div>
+        ) : (
+          <div>
+            <h3 className="transporte-subtitulo">¿Querés compartir tu viaje?</h3>
+            <p className="texto-secundario" style={{ marginBottom: 16 }}>
+              Si compartís, otros asistentes van a poder solicitarte unirse al viaje.
+            </p>
+            <div className="transporte-toggle-comparte">
+              <button
+                className={`btn ${asistente.comparte_auto ? 'btn-primario' : 'btn-secundario'}`}
+                onClick={() => cambiarComparteAuto(true)}
+                disabled={guardando}
+              >
+                Sí, compartir
+              </button>
+              <button
+                className={`btn ${!asistente.comparte_auto ? 'btn-primario' : 'btn-secundario'}`}
+                onClick={() => cambiarComparteAuto(false)}
+                disabled={guardando}
+              >
+                No, voy solo/a
+              </button>
+            </div>
+
+            {asistente.comparte_auto && (
+              <div className="alerta alerta-exito" style={{ marginTop: 16 }}>
+                Tu auto está disponible para compartir. Cuando alguien solicite
+                unirse, vas a ver la solicitud acá mismo para aprobarla o rechazarla.
+              </div>
+            )}
+
+            <h3 className="transporte-subtitulo" style={{ marginTop: 20 }}>Estacionamientos cercanos</h3>
+            <div className="transporte-lista-estacionamientos">
+              {estacionamientos.map(e => (
+                <div key={e.nombre} className="transporte-estacionamiento-item">
+                  <strong>{e.nombre}</strong>
+                  <span className="texto-secundario">{e.direccion} — {e.distancia}</span>
+                </div>
+              ))}
+            </div>
+
+            <button className="btn btn-secundario" style={{ width: '100%', marginTop: 16 }} onClick={handleCambiarModo}>
+              Cambiar de medio de transporte
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ── Tarjeta Entrada ─────────────────────────────────────────────── */
-function TarjetaEntrada({ entrada, onCancelar, onTransferir }) {
+function TarjetaEntrada({ entrada, onCancelar, onTransferir, onTransporte }) {
   const fechaCompra = new Date(entrada.fecha_compra).toLocaleDateString('es-AR', {
     day: 'numeric', month: 'short', year: 'numeric'
   })
@@ -93,8 +317,8 @@ function TarjetaEntrada({ entrada, onCancelar, onTransferir }) {
   const fechaEvento = entrada.evento ? new Date(entrada.evento.fecha_hora) : null
   const fechaEventoStr = fechaEvento
     ? fechaEvento.toLocaleDateString('es-AR', {
-        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
-      })
+      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
+    })
     : '—'
   const horaEvento = fechaEvento
     ? fechaEvento.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
@@ -116,15 +340,15 @@ function TarjetaEntrada({ entrada, onCancelar, onTransferir }) {
 
       <div className="entrada-detalles">
         <div className="entrada-dato">
-          <span>📅 Fecha del evento</span>
+          <span>Fecha del evento</span>
           <strong>{fechaEventoStr} {horaEvento && `· ${horaEvento}hs`}</strong>
         </div>
         <div className="entrada-dato">
-          <span>🗓️ Comprada el</span>
+          <span>Comprada el</span>
           <strong>{fechaCompra}</strong>
         </div>
         <div className="entrada-dato">
-          <span>💰 Precio pagado</span>
+          <span>Precio pagado</span>
           <strong className="texto-acento">
             {entrada.precio_pagado === 0
               ? 'GRATIS'
@@ -137,15 +361,21 @@ function TarjetaEntrada({ entrada, onCancelar, onTransferir }) {
         <div className="entrada-acciones">
           <button
             className="btn btn-secundario btn-sm"
+            onClick={() => onTransporte(entrada)}
+          >
+            Transporte
+          </button>
+          <button
+            className="btn btn-secundario btn-sm"
             onClick={() => onTransferir(entrada)}
           >
-            ↗ Transferir
+            Transferir
           </button>
           <button
             className="btn btn-peligro btn-sm"
             onClick={() => onCancelar(entrada)}
           >
-            ✕ Cancelar
+            Cancelar
           </button>
         </div>
       )}
@@ -162,6 +392,7 @@ export default function PaginaMisEntradas() {
 
   const [entradaACancelar, setEntradaACancelar] = useState(null)
   const [entradaATransferir, setEntradaATransferir] = useState(null)
+  const [entradaTransporte, setEntradaTransporte] = useState(null)
   const [accionCargando, setAccionCargando] = useState(false)
 
   const cargarEntradas = async () => {
@@ -210,7 +441,7 @@ export default function PaginaMisEntradas() {
   }
 
   const activas = entradas.filter(e => e.estado === 'activa')
-  const resto   = entradas.filter(e => e.estado !== 'activa')
+  const resto = entradas.filter(e => e.estado !== 'activa')
 
   return (
     <div className="pagina-mis-entradas">
@@ -227,14 +458,14 @@ export default function PaginaMisEntradas() {
           <div className="alerta alerta-error" style={{ marginBottom: 24 }}>
             {error}
             <button style={{ marginLeft: 12, background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-              onClick={() => setError('')}>✕</button>
+              onClick={() => setError('')}>X</button>
           </div>
         )}
         {mensajeExito && (
           <div className="alerta alerta-exito" style={{ marginBottom: 24 }}>
             {mensajeExito}
             <button style={{ marginLeft: 12, background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-              onClick={() => setMensajeExito('')}>✕</button>
+              onClick={() => setMensajeExito('')}>X</button>
           </div>
         )}
 
@@ -242,7 +473,6 @@ export default function PaginaMisEntradas() {
           <div className="cargando-contenedor"><div className="spinner" /><span>Cargando entradas...</span></div>
         ) : entradas.length === 0 ? (
           <div className="sin-entradas">
-            <span className="sin-entradas-icono">🎫</span>
             <h3>Todavía no compraste entradas</h3>
             <p>Explorá el catálogo y conseguí tus tickets favoritos.</p>
             <Link to="/" className="btn btn-primario" style={{ marginTop: 16 }}>Ver eventos</Link>
@@ -256,7 +486,8 @@ export default function PaginaMisEntradas() {
                   {activas.map(e => (
                     <TarjetaEntrada key={e.id} entrada={e}
                       onCancelar={setEntradaACancelar}
-                      onTransferir={setEntradaATransferir} />
+                      onTransferir={setEntradaATransferir}
+                      onTransporte={setEntradaTransporte} />
                   ))}
                 </div>
               </section>
@@ -268,7 +499,8 @@ export default function PaginaMisEntradas() {
                   {resto.map(e => (
                     <TarjetaEntrada key={e.id} entrada={e}
                       onCancelar={setEntradaACancelar}
-                      onTransferir={setEntradaATransferir} />
+                      onTransferir={setEntradaATransferir}
+                      onTransporte={setEntradaTransporte} />
                   ))}
                 </div>
               </section>
@@ -288,6 +520,10 @@ export default function PaginaMisEntradas() {
           onConfirmar={handleTransferirConfirmar}
           onCerrar={() => setEntradaATransferir(null)}
           cargando={accionCargando} />
+      )}
+      {entradaTransporte && (
+        <ModalAsistenteTransporte entrada={entradaTransporte}
+          onCerrar={() => setEntradaTransporte(null)} />
       )}
     </div>
   )

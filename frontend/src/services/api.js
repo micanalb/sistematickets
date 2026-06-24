@@ -72,6 +72,24 @@ export const entradasAPI = {
   transferir: (entradaID, emailDestinatario) =>
     api.put(`/entradas/${entradaID}/transferir`, { email_destinatario: emailDestinatario }),
 }
+
+export const transporteAPI = {
+  // Configura o actualiza el modo de transporte de una entrada (colectivo,
+  // auto_propio o compartido). El backend decide si crea un registro nuevo
+  // o actualiza el existente según si la entrada ya tenía uno configurado.
+  configurar: (datos) => api.post('/transporte', datos),
+  // Devuelve la configuración guardada para una entrada, junto con el
+  // catálogo de apoyo correspondiente (líneas de colectivo o estacionamientos).
+  obtenerPorEntrada: (entradaID) => api.get(`/transporte/entrada/${entradaID}`),
+  // Lista quiénes ofrecen compartir auto para un evento (Parte 2 del bonus)
+  listarOfertas: (eventoID) => api.get(`/transporte/ofertas/${eventoID}`),
+  // Solicita unirse al auto de otro usuario (Parte 2)
+  solicitarCompartir: (asistenteID) => api.post(`/transporte/${asistenteID}/solicitar`),
+  // El dueño del auto aprueba o rechaza una solicitud (Parte 2)
+  responderSolicitud: (asistenteID, aprobar) =>
+    api.put(`/transporte/${asistenteID}/responder`, { aprobar }),
+}
+
 //Mismo patrón para entradas: comprar, listar las propias, cancelar, transferir a otro usuario por email. 
 //cancelar y transferir son PUT (modifican un recurso existente), comprar es POST (crea uno nuevo) — convención REST correcta.
 //comprar acepta una cantidad opcional para permitir comprar varias entradas en una sola operación.
