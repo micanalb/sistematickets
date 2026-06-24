@@ -77,6 +77,7 @@ func InicializarDB() (*gorm.DB, error) {
 		&domain.Usuario{},
 		&domain.Evento{},
 		&domain.Entrada{},
+		&domain.AsistenteTransporte{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error en auto-migración de GORM: %w", err)
