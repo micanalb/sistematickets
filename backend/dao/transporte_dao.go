@@ -34,13 +34,13 @@ func (dao *transporteDAOImpl) Crear(asistente *domain.AsistenteTransporte) error
 	return dao.db.Create(asistente).Error
 }
 
-// BuscarPorEntradaID es la consulta principal: cada entrada tiene a lo sumo
-// un asistente de transporte configurado (relación 1 a 1).
 func (dao *transporteDAOImpl) BuscarPorEntradaID(entradaID uint) (*domain.AsistenteTransporte, error) {
 	var asistente domain.AsistenteTransporte
 	resultado := dao.db.
 		Preload("Entrada").
 		Preload("Evento").
+		Preload("Usuario").
+		Preload("UsuarioMatch").
 		Where("entrada_id = ?", entradaID).
 		First(&asistente)
 	if resultado.Error != nil {

@@ -254,3 +254,31 @@
   border-radius: var(--radio);
   font-size: 0.875rem;
 }
+
+.transporte-contacto-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  background: var(--color-fondo-3);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  margin-bottom: 8px;
+}
+
+.transporte-lista-ofertas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.transporte-oferta-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--color-fondo-3);
+  border-radius: var(--radio);
+  font-size: 0.875rem;
+}
