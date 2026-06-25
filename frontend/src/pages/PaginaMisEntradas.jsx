@@ -83,13 +83,7 @@ function ModalTransferir({ entrada, onConfirmar, onCerrar, cargando }) {
   )
 }
 
-/* -- Vista: Compartido --
-   A) Sin match -> lista de ofertas disponibles, boton Solicitar unirme.
-   B) Solicito y esta pendiente -> mensaje de espera.
-   C) Solicito y fue aprobado -> datos de contacto del dueno.
-   D) Es dueno y tiene solicitud pendiente -> Aprobar/Rechazar.
-   E) Es dueno y ya aprobo -> datos de contacto de quien se sumo.
-*/
+/* -- Vista: Compartido -- */
 function VistaCompartido({ entrada, asistenteUsuario, usuarioActualId, onActualizado }) {
   const [cargando, setCargando] = useState(true)
   const [accionCargando, setAccionCargando] = useState(false)
@@ -102,8 +96,15 @@ function VistaCompartido({ entrada, asistenteUsuario, usuarioActualId, onActuali
     setCargando(true)
     setError('')
     try {
-      const res = await transporteAPI.listarOfertas(entrada.evento_id)
-      setOfertas(res.data.datos?.ofertas || [])
+      const eventoId = entrada.evento_id || entrada.evento?.id
+      const res = await transporteAPI.listarOfertas(eventoId)
+
+      const ofertasRecibidas = res.data.datos?.ofertas || []
+
+      // Evita mostrar como oferta el propio auto del usuario actual
+      const ofertasDeOtros = ofertasRecibidas.filter(o => o.usuario_id !== usuarioActualId)
+
+      setOfertas(ofertasDeOtros)
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudieron cargar las ofertas.')
     } finally {
@@ -137,17 +138,24 @@ function VistaCompartido({ entrada, asistenteUsuario, usuarioActualId, onActuali
   }
 
   const handleSolicitar = async (asistenteOfertaId) => {
-    setAccionCargando(true)
-    setError('')
-    try {
-      await transporteAPI.solicitarCompartir(asistenteOfertaId)
-      onActualizado()
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo enviar la solicitud.')
-    } finally {
-      setAccionCargando(false)
-    }
+  setAccionCargando(true)
+  setError('')
+  try {
+    await transporteAPI.solicitarCompartir(asistenteOfertaId)
+
+    setOfertas(prev =>
+      prev.map(o =>
+        o.id === asistenteOfertaId
+          ? { ...o, usuario_match_id: usuarioActualId, estado_match: 'pendiente' }
+          : o
+      )
+    )
+  } catch (err) {
+    setError(err.response?.data?.error || 'No se pudo enviar la solicitud.')
+  } finally {
+    setAccionCargando(false)
   }
+}
 
   const handleResponder = async (aprobar) => {
     setAccionCargando(true)
@@ -302,17 +310,20 @@ function ModalAsistenteTransporte({ entrada, onCerrar }) {
   const [error, setError] = useState('')
   const [asistente, setAsistente] = useState(null)
   const [vistaCompartido, setVistaCompartido] = useState(false)
+
   const [lineasColectivo] = useState([
     { linea: 'Linea 1', recorrido: 'Centro - Estadio', url_horario: 'https://cordoba.gob.ar/tu-bondi/' },
     { linea: 'Linea 7', recorrido: 'Terminal - Centro', url_horario: 'https://cordoba.gob.ar/tu-bondi/' },
     { linea: 'Linea 14', recorrido: 'Barrio Norte - Estadio', url_horario: 'https://cordoba.gob.ar/tu-bondi/' },
     { linea: 'Linea 20', recorrido: 'Circunvalacion', url_horario: 'https://cordoba.gob.ar/tu-bondi/' },
   ])
+
   const [estacionamientos] = useState([
     { nombre: 'Parking Centro', direccion: 'Av. Principal 450', distancia: '200m del lugar' },
     { nombre: 'Estacionamiento Plaza', direccion: 'San Martin 120', distancia: '350m del lugar' },
     { nombre: 'Parking Estadio', direccion: 'Av. del Estadio 10', distancia: '100m del lugar' },
   ])
+
   const [lineaSeleccionada, setLineaSeleccionada] = useState('')
 
   const cargarAsistente = async () => {
@@ -334,32 +345,18 @@ function ModalAsistenteTransporte({ entrada, onCerrar }) {
   }, [])
 
   useEffect(() => {
-    const detectarSiMostrarCompartido = async () => {
-      if (!asistente) return
+    if (!asistente) return
 
-      // Caso dueño: ya está ofertando su auto
-      if (asistente.comparte_auto) {
-        setVistaCompartido(true)
-        return
-      }
-
-      // Si no comparte auto, nos asegura volver a la vista normal salvo
-      // que tenga una solicitud propia en curso (chequeado abajo)
-      if (asistente.modo === 'auto_propio') {
-        try {
-          const res = await transporteAPI.listarOfertas(entrada.evento_id)
-          const ofertas = res.data.datos?.ofertas || []
-          const tieneSolicitudPropia = ofertas.some(o => o.usuario_match_id === usuario?.id)
-          setVistaCompartido(tieneSolicitudPropia)
-        } catch {
-          setVistaCompartido(false)
-        }
-      } else {
-        setVistaCompartido(false)
-      }
+    if (asistente.comparte_auto) {
+      setVistaCompartido(true)
+      return
     }
 
-    detectarSiMostrarCompartido()
+    // Si el usuario ya tenia una solicitud pendiente o aprobada, lo mandamos a la vista compartida.
+    if (asistente.estado_match === 'pendiente' || asistente.estado_match === 'aprobado') {
+      setVistaCompartido(true)
+      return
+    }
   }, [asistente])
 
   const guardarModo = async (datosExtra) => {
@@ -385,11 +382,8 @@ function ModalAsistenteTransporte({ entrada, onCerrar }) {
 
   const elegirAutoPropio = () => guardarModo({ modo: 'auto_propio', comparte_auto: false })
 
-  const elegirCompartido = async () => {
+  const elegirCompartido = () => {
     setVistaCompartido(true)
-    if (!asistente) {
-      await guardarModo({ modo: 'auto_propio', comparte_auto: false })
-    }
   }
 
   const confirmarLinea = () => {
@@ -419,6 +413,7 @@ function ModalAsistenteTransporte({ entrada, onCerrar }) {
           <h2>Asistente de transporte</h2>
           <button className="btn-cerrar" onClick={onCerrar}>X</button>
         </div>
+
         <p className="texto-secundario" style={{ marginBottom: 16 }}>
           {entrada.evento?.titulo}
         </p>
@@ -615,22 +610,13 @@ function TarjetaEntrada({ entrada, onCancelar, onTransferir, onTransporte }) {
 
       {puedeAccionar && (
         <div className="entrada-acciones">
-          <button
-            className="btn btn-secundario btn-sm"
-            onClick={() => onTransporte(entrada)}
-          >
+          <button className="btn btn-secundario btn-sm" onClick={() => onTransporte(entrada)}>
             Transporte
           </button>
-          <button
-            className="btn btn-secundario btn-sm"
-            onClick={() => onTransferir(entrada)}
-          >
+          <button className="btn btn-secundario btn-sm" onClick={() => onTransferir(entrada)}>
             Transferir
           </button>
-          <button
-            className="btn btn-peligro btn-sm"
-            onClick={() => onCancelar(entrada)}
-          >
+          <button className="btn btn-peligro btn-sm" onClick={() => onCancelar(entrada)}>
             Cancelar
           </button>
         </div>
