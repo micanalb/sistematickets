@@ -1,0 +1,108 @@
+# docker-compose.yml — Orquesta los 3 componentes del sistema:
+# MySQL (base de datos), Backend (Go/Gin) y Frontend (React/Vite).
+#
+# Uso:
+#   docker compose up --build     -> levanta todo (primera vez o tras cambios)
+#   docker compose up -d          -> levanta todo en segundo plano
+#   docker compose down           -> apaga y elimina los contenedores
+#   docker compose down -v        -> además borra los volúmenes (datos de BD)
+
+services:
+
+  # ── Base de datos ──────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: sistematickets-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-tickets123}
+      MYSQL_DATABASE: ${DB_NAME:-sistematickets}
+    ports:
+      # Se expone también al host (no solo a la red interna de Docker) para
+      # poder conectarse con un cliente MySQL local y revisar datos si hace falta.
+      - "3306:3306"
+    volumes:
+      # Volumen nombrado: los datos de MySQL persisten aunque se borre el
+      # contenedor con "docker compose down" (solo se pierden con el flag -v).
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      # Antes de que backend pueda conectarse, MySQL necesita haber terminado
+      # de inicializar — este healthcheck evita errores de "conexión rechazada"
+      # en el primer arranque, cuando MySQL todavía está configurándose.
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-tickets123}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sistematickets-net
+
+  # ── Backend (Go + Gin) ──────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sistematickets-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        # No alcanza con "depends_on" simple porque el contenedor de MySQL
+        # arranca casi instantáneo, pero el SERVICIO de MySQL adentro tarda
+        # unos segundos más en aceptar conexiones. service_healthy espera
+        # a que el healthcheck de arriba pase antes de iniciar el backend.
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      PORT: 8080
+      # DB_HOST usa el nombre del servicio "mysql" en vez de "localhost":
+      # dentro de la red interna de Docker Compose, cada servicio resuelve
+      # por su nombre — esta es la pieza clave para que los contenedores
+      # se encuentren entre sí.
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-tickets123}
+      DB_NAME: ${DB_NAME:-sistematickets}
+      JWT_SECRET: ${JWT_SECRET:-elmejorproyectodedesarrollodesoft}
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "8080:8080"
+    volumes:
+      # Volumen persistente para las imágenes de eventos subidas desde el
+      # panel admin — sin esto, las fotos se perderían cada vez que se
+      # recrea el contenedor (por ejemplo al hacer "docker compose up --build").
+      - uploads_data:/app/uploads
+    networks:
+      - sistematickets-net
+
+  # ── Frontend (React + Vite) ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sistematickets-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      # Le indica al proxy de vite preview (configurado en vite.config.js)
+      # a dónde reenviar las peticiones /api — usa el nombre del servicio
+      # "backend" en lugar de "localhost", por la misma razón que arriba.
+      VITE_API_TARGET: http://backend:8080
+    ports:
+      - "5173:5173"
+    networks:
+      - sistematickets-net
+
+# ── Volúmenes nombrados ───────────────────────────────────────────────────────
+# Docker los gestiona internamente; persisten entre "docker compose down"
+# (sin -v) y se pueden inspeccionar con "docker volume ls".
+volumes:
+  mysql_data:
+  uploads_data:
+
+# ── Red interna ───────────────────────────────────────────────────────────────
+# Todos los servicios comparten esta red para poder resolverse por nombre
+# (mysql, backend, frontend) en lugar de por IP.
+networks:
+  sistematickets-net:
+    driver: bridge

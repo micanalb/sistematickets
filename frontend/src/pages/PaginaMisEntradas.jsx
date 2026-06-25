@@ -343,21 +343,19 @@ function ModalAsistenteTransporte({ entrada, onCerrar }) {
         return
       }
 
-      // Caso solicitante: chequeamos si entre las ofertas del evento hay
-      // alguna donde este usuario figure como usuario_match -- significa
-      // que ya solicitó (o le aprobaron) unirse al auto de otro.
+      // Si no comparte auto, nos asegura volver a la vista normal salvo
+      // que tenga una solicitud propia en curso (chequeado abajo)
       if (asistente.modo === 'auto_propio') {
         try {
           const res = await transporteAPI.listarOfertas(entrada.evento_id)
           const ofertas = res.data.datos?.ofertas || []
           const tieneSolicitudPropia = ofertas.some(o => o.usuario_match_id === usuario?.id)
-          if (tieneSolicitudPropia) {
-            setVistaCompartido(true)
-          }
+          setVistaCompartido(tieneSolicitudPropia)
         } catch {
-          // Si falla la consulta, no forzamos la vista compartido -- el
-          // usuario puede entrar manualmente eligiendo "Compartido"
+          setVistaCompartido(false)
         }
+      } else {
+        setVistaCompartido(false)
       }
     }
 

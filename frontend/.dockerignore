@@ -1,0 +1,22 @@
+# node_modules se reinstala dentro del contenedor con npm install --
+# copiar el de la compu local rompería la build (binarios nativos
+# compilados para otro sistema operativo)
+node_modules/
+
+# La build se genera dentro del contenedor; no hace falta copiar una
+# build vieja que pueda existir en la compu local
+dist/
+
+# Variables de entorno locales
+.env
+*.env.local
+
+# Git y archivos de IDE
+.git
+.gitignore
+.idea/
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*

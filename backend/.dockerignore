@@ -1,0 +1,25 @@
+# No copiar el .env -- las variables de entorno las inyecta docker-compose.yml
+.env
+*.env
+!*.env.example
+
+# Carpeta de uploads local -- en el contenedor se monta como volumen, no
+# necesitamos copiar imágenes ya subidas en desarrollo dentro de la imagen
+uploads/
+
+# Binarios compilados localmente (el Dockerfile compila el suyo propio)
+ticketsya-server
+ticketsya
+*.exe
+*.test
+*.out
+coverage.out
+
+# Git y archivos de IDE, no aportan nada a la imagen
+.git
+.gitignore
+.idea/
+.vscode/
+
+# Logs
+*.log

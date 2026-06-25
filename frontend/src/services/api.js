@@ -59,10 +59,18 @@ export const eventosAPI = {
   actualizar: (id, datos) => api.put(`/admin/eventos/${id}`, datos),
   eliminar: (id) => api.delete(`/admin/eventos/${id}`),
   reporte: (id) => api.get(`/admin/eventos/${id}/reporte`),
+  // Sube una imagen para el evento usando FormData (multipart) en vez de
+  // JSON, porque axios necesita ese formato para mandar archivos binarios.
+  // El Content-Type se pisa acá a multipart/form-data, distinto al
+  // application/json que usa el resto de los métodos.
+  subirImagen: (id, archivo) => {
+    const formData = new FormData()
+    formData.append('imagen', archivo)
+    return api.post(`/admin/eventos/${id}/imagen`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }
-//Notá la separación implícita entre rutas públicas (/eventos) y rutas de admin (/admin/eventos) — coincide con lo que mencionaste sobre roles (administrador en la base). 
-//La protección real de "quién puede hacer esto" no está acá (es solo el cliente armando la URL), está en el backend con el middleware de JWT/rol — este archivo asume que el backend va a rechazar con 401/403 si no corresponde.
-
 export const entradasAPI = {
   // cantidad es opcional — si no se pasa, el backend asume 1 (compra individual de siempre)
   comprar: (eventoID, cantidad = 1) =>
